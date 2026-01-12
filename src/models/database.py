@@ -261,6 +261,10 @@ class Database:
                 cursor.execute(query)
 
             conn.commit()
+
+            # Armazenar lastrowid para ser recuperado depois
+            self._last_insert_id = cursor.lastrowid
+
             return True
 
         except sqlite3.Error as e:
@@ -277,10 +281,8 @@ class Database:
             int: ID do último insert ou None se erro
         """
         try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            return cursor.lastrowid
-        except sqlite3.Error as e:
+            return getattr(self, '_last_insert_id', None)
+        except Exception as e:
             logger.error(f"Erro ao obter último ID: {e}")
             return None
 

@@ -78,7 +78,7 @@ class AlternativaRepositoryImpl(IAlternativaRepository):
     def buscar_por_questao(self, id_questao: int) -> List[Dict[str, Any]]:
         """Busca todas alternativas de uma questão"""
         try:
-            alternativas = AlternativaModel.buscar_por_questao(id_questao)
+            alternativas = AlternativaModel.listar_por_questao(id_questao)
             logger.debug(
                 f"Alternativas obtidas: {len(alternativas)} (questão {id_questao})"
             )

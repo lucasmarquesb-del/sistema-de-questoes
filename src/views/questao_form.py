@@ -26,6 +26,8 @@ import logging
 from src.views.widgets import (
     LatexEditor, ImagePicker, TagTreeWidget, DifficultySelector
 )
+from src.controllers.questao_controller_refactored import criar_questao_controller
+from src.application.dtos import QuestaoCreateDTO, QuestaoUpdateDTO, AlternativaDTO
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,9 @@ class QuestaoForm(QDialog):
         super().__init__(parent)
         self.questao_id = questao_id
         self.is_editing = questao_id is not None
+
+        # Inicializar controller
+        self.controller = criar_questao_controller()
 
         self.setWindowTitle("Editar Questão" if self.is_editing else "Nova Questão")
         self.setMinimumSize(1000, 700)
@@ -310,32 +315,14 @@ class QuestaoForm(QDialog):
         # Por enquanto, não faz nada
 
     def validate_form(self):
-        """Valida os dados do formulário"""
-        # Enunciado obrigatório
+        """Validação mínima de UI (apenas campos obrigatórios visuais)
+
+        A validação de regras de negócio é feita pelo ValidationService no Controller
+        """
+        # Apenas validação básica de UI
         if not self.enunciado_editor.get_text().strip():
             QMessageBox.warning(self, "Validação", "O enunciado é obrigatório!")
             return False
-
-        # Se objetiva, pelo menos uma alternativa
-        if self.tipo_objetiva.isChecked():
-            tem_alternativa = False
-            tem_correta = False
-
-            for widget in self.alternativas_widgets:
-                if widget.texto_input.text().strip():
-                    tem_alternativa = True
-                if widget.checkbox.isChecked():
-                    tem_correta = True
-
-            if not tem_alternativa:
-                QMessageBox.warning(self, "Validação",
-                                   "Questão objetiva deve ter pelo menos uma alternativa!")
-                return False
-
-            if not tem_correta:
-                QMessageBox.warning(self, "Validação",
-                                   "Marque qual alternativa é a correta!")
-                return False
 
         return True
 
@@ -372,31 +359,130 @@ class QuestaoForm(QDialog):
         return data
 
     def save_questao(self):
-        """Salva a questão"""
+        """Salva a questão usando o controller"""
         logger.info("Salvando questão")
 
-        # Validar
+        # Validação básica de UI
         if not self.validate_form():
             return
 
-        # Coletar dados
-        data = self.get_form_data()
+        # Coletar dados do formulário
+        form_data = self.get_form_data()
 
-        logger.info(f"Dados coletados: {data}")
+        try:
+            if self.is_editing:
+                # Atualizar questão existente
+                self._atualizar_questao(form_data)
+            else:
+                # Criar nova questão
+                self._criar_questao(form_data)
 
-        # TODO: Salvar no banco de dados via controller
-        # Por enquanto, apenas simular sucesso
+        except Exception as e:
+            logger.error(f"Erro ao salvar questão: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Erro",
+                f"Erro ao salvar questão:\n{str(e)}"
+            )
 
-        QMessageBox.information(
-            self,
-            "Sucesso",
-            "Questão salva com sucesso!\n\n"
-            "(Integração com banco de dados será implementada)"
+    def _criar_questao(self, form_data):
+        """Cria nova questão via controller"""
+        # Converter alternativas para DTOs
+        alternativas_dto = []
+        for alt in form_data['alternativas']:
+            alternativas_dto.append(AlternativaDTO(
+                letra=alt['letra'],
+                texto=alt['texto'],
+                correta=alt.get('correta', False),
+                imagem=alt.get('imagem')
+            ))
+
+        # Criar DTO de criação
+        dto = QuestaoCreateDTO(
+            titulo=form_data['titulo'],
+            enunciado=form_data['enunciado'],
+            tipo=form_data['tipo'],
+            ano=form_data['ano'],
+            fonte=form_data['fonte'],
+            id_dificuldade=form_data['id_dificuldade'],
+            resolucao=form_data.get('resolucao'),
+            imagem_enunciado=form_data.get('imagem_enunciado'),
+            escala_imagem_enunciado=form_data.get('escala_imagem_enunciado'),
+            alternativas=alternativas_dto,
+            tags=form_data.get('tags', [])
         )
 
-        # Emitir sinal e fechar
-        self.questaoSaved.emit(self.questao_id or 0)
-        self.accept()
+        # Salvar via controller
+        id_questao = self.controller.criar_questao_completa(dto)
+
+        if id_questao:
+            QMessageBox.information(
+                self,
+                "Sucesso",
+                f"Questão criada com sucesso!\n\nID: {id_questao}"
+            )
+
+            # Emitir sinal e fechar
+            self.questaoSaved.emit(id_questao)
+            self.accept()
+        else:
+            QMessageBox.warning(
+                self,
+                "Falha",
+                "Não foi possível criar a questão.\n\n"
+                "Verifique os dados e tente novamente.\n"
+                "Consulte o log para mais detalhes."
+            )
+
+    def _atualizar_questao(self, form_data):
+        """Atualiza questão existente via controller"""
+        # Converter alternativas para DTOs
+        alternativas_dto = []
+        for alt in form_data['alternativas']:
+            alternativas_dto.append(AlternativaDTO(
+                letra=alt['letra'],
+                texto=alt['texto'],
+                correta=alt.get('correta', False),
+                imagem=alt.get('imagem')
+            ))
+
+        # Criar DTO de atualização
+        dto = QuestaoUpdateDTO(
+            id_questao=self.questao_id,
+            titulo=form_data['titulo'],
+            enunciado=form_data['enunciado'],
+            tipo=form_data['tipo'],
+            ano=form_data['ano'],
+            fonte=form_data['fonte'],
+            id_dificuldade=form_data['id_dificuldade'],
+            resolucao=form_data.get('resolucao'),
+            imagem_enunciado=form_data.get('imagem_enunciado'),
+            escala_imagem_enunciado=form_data.get('escala_imagem_enunciado'),
+            alternativas=alternativas_dto if alternativas_dto else None,
+            tags=form_data.get('tags')
+        )
+
+        # Atualizar via controller
+        sucesso = self.controller.atualizar_questao_completa(dto)
+
+        if sucesso:
+            QMessageBox.information(
+                self,
+                "Sucesso",
+                f"Questão atualizada com sucesso!\n\nID: {self.questao_id}"
+            )
+
+            # Emitir sinal e fechar
+            self.questaoSaved.emit(self.questao_id)
+            self.accept()
+        else:
+            QMessageBox.warning(
+                self,
+                "Falha",
+                "Não foi possível atualizar a questão.\n\n"
+                "Verifique os dados e tente novamente.\n"
+                "Consulte o log para mais detalhes."
+            )
 
     def show_preview(self):
         """Exibe preview da questão"""

@@ -10,6 +10,7 @@ BENEFÍCIOS:
 
 import logging
 from typing import Optional, Dict, List, Any
+from datetime import datetime
 
 from src.domain.interfaces import IQuestaoRepository
 from src.models.questao import QuestaoModel
@@ -37,19 +38,19 @@ class QuestaoRepositoryImpl(IQuestaoRepository):
         Adapta chamada para QuestaoModel.criar
         """
         try:
+            # Model requer ano e fonte como obrigatórios
+            # Usar valores padrão se não fornecidos
+            ano_final = ano if ano is not None else datetime.now().year
+            fonte_final = fonte if fonte else 'AUTORAL'
+
             kwargs = {
                 'titulo': titulo,
                 'enunciado': enunciado,
                 'tipo': tipo,
+                'ano': ano_final,
+                'fonte': fonte_final,
                 'id_dificuldade': id_dificuldade
             }
-
-            # Adicionar campos opcionais apenas se fornecidos
-            if ano is not None:
-                kwargs['ano'] = ano
-
-            if fonte is not None:
-                kwargs['fonte'] = fonte
 
             if resolucao is not None:
                 kwargs['resolucao'] = resolucao
@@ -79,6 +80,9 @@ class QuestaoRepositoryImpl(IQuestaoRepository):
             questao = QuestaoModel.buscar_por_id(id_questao)
 
             if questao:
+                # Mapear id_questao para id (compatibilidade com DTOs)
+                questao['id'] = questao.get('id_questao')
+                questao['ativa'] = questao.get('ativo', True)
                 logger.debug(f"Questão encontrada: ID {id_questao}")
             else:
                 logger.debug(f"Questão não encontrada: ID {id_questao}")
@@ -123,16 +127,25 @@ class QuestaoRepositoryImpl(IQuestaoRepository):
 
             questoes = QuestaoModel.buscar_por_filtros(**kwargs)
 
-            # Filtrar por ativa se necessário
-            if ativa:
-                questoes = [q for q in questoes if q.get('ativa', True)]
+            # Mapear campos e filtrar por ativa
+            questoes_mapeadas = []
+            for q in questoes:
+                # Mapear id_questao para id e ativo para ativa
+                q['id'] = q.get('id_questao')
+                q['ativa'] = q.get('ativo', True)
+
+                # Filtrar por ativa se necessário
+                if ativa and not q['ativa']:
+                    continue
+
+                questoes_mapeadas.append(q)
 
             logger.info(
-                f"Busca de questões: {len(questoes)} encontradas "
+                f"Busca de questões: {len(questoes_mapeadas)} encontradas "
                 f"(filtros: {len(kwargs)})"
             )
 
-            return questoes
+            return questoes_mapeadas
 
         except Exception as e:
             logger.error(f"Erro ao buscar questões por filtros: {e}", exc_info=True)
@@ -274,7 +287,7 @@ class QuestaoRepositoryImpl(IQuestaoRepository):
     def obter_tags(self, id_questao: int) -> List[Dict[str, Any]]:
         """Obtém todas as tags vinculadas a uma questão"""
         try:
-            tags = QuestaoModel.obter_tags(id_questao)
+            tags = QuestaoModel.listar_tags(id_questao)
 
             logger.debug(
                 f"Tags obtidas para questão {id_questao}: {len(tags)} tags"

@@ -22,6 +22,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 import logging
 
+from src.controllers.questao_controller_refactored import criar_questao_controller
+from src.application.dtos import FiltroQuestaoDTO
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +40,10 @@ class SearchPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        # Inicializar controller
+        self.controller = criar_questao_controller()
+
         self.init_ui()
         logger.info("SearchPanel inicializado")
 
@@ -311,16 +318,78 @@ class SearchPanel(QWidget):
         self.results_count_label.setText("Resultados: 0")
 
     def perform_search(self):
-        """Executa a busca com os filtros atuais"""
+        """Executa a busca com os filtros atuais via controller"""
         logger.info("Executando busca")
-
-        # TODO: Conectar com controller para buscar no banco
-        # Por enquanto, exibir dados de exemplo
 
         # Limpar resultados anteriores
         self.clear_results()
 
-        # Dados de exemplo
+        try:
+            # Coletar filtros
+            filtro = self._get_filtros()
+
+            # Buscar via controller
+            questoes_dto = self.controller.buscar_questoes(filtro)
+
+            # Exibir resultados
+            for questao_dto in questoes_dto:
+                # Converter DTO para dict para manter compatibilidade
+                questao_data = {
+                    'id': questao_dto.id,
+                    'titulo': questao_dto.titulo or 'Sem título',
+                    'enunciado': questao_dto.enunciado[:100] + '...' if len(questao_dto.enunciado) > 100 else questao_dto.enunciado,
+                    'tipo': questao_dto.tipo,
+                    'fonte': questao_dto.fonte or 'N/A',
+                    'ano': questao_dto.ano or 'N/A',
+                    'dificuldade': questao_dto.dificuldade_nome
+                }
+                card = self.create_questao_card(questao_data)
+                self.results_layout.addWidget(card)
+
+            self.results_count_label.setText(f"Resultados: {len(questoes_dto)}")
+
+            logger.info(f"Busca concluída: {len(questoes_dto)} questões encontradas")
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar questões: {e}", exc_info=True)
+            self.results_count_label.setText("Erro ao buscar questões")
+
+    def _get_filtros(self):
+        """Coleta filtros atuais para busca"""
+        # Obter valores dos filtros
+        titulo = self.search_input.text().strip() or None
+        tipo = self.tipo_combo.currentText() if self.tipo_combo.currentText() != "Todos" else None
+        ano_value = self.ano_spin.value()
+        ano = ano_value if ano_value > 1900 else None
+        fonte = self.fonte_combo.currentText() if self.fonte_combo.currentText() != "Todas" else None
+
+        # Mapear dificuldade selecionada
+        dificuldade_texto = self.dificuldade_combo.currentText()
+        dificuldade_map = {
+            'Fácil': 1,
+            'Médio': 2,
+            'Difícil': 3
+        }
+        id_dificuldade = dificuldade_map.get(dificuldade_texto)
+
+        # TODO: Obter tags selecionadas da árvore de tags
+        tags = []
+
+        # Criar DTO de filtro
+        filtro = FiltroQuestaoDTO(
+            titulo=titulo,
+            tipo=tipo,
+            ano=ano,
+            fonte=fonte,
+            id_dificuldade=id_dificuldade,
+            tags=tags,
+            ativa=True  # Buscar apenas questões ativas
+        )
+
+        return filtro
+
+    def _exemplo_placeholder(self):
+        """Método auxiliar com dados de exemplo (não usado mais)"""
         exemplo_questoes = [
             {
                 'id': 1,
