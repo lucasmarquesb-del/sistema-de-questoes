@@ -304,11 +304,19 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def show_listas_view(self):
-        """Exibe tela de listas"""
+        """Exibe a tela de gerenciamento de listas."""
         logger.info("Navegando para: Listas")
         self.status_label.setText("Visualizando listas")
-        self.show_placeholder("📋 Listas",
-                             "Aqui você poderá visualizar e gerenciar suas listas de questões")
+
+        # Cria o painel de listas na primeira vez que é acessado
+        if not hasattr(self, 'lista_panel'):
+            from src.views.lista_panel import ListaPanel
+            self.lista_panel = ListaPanel(self)
+            self.stacked_widget.addWidget(self.lista_panel)
+
+        # Garante que a lista esteja sempre atualizada ao exibir a tela
+        self.lista_panel.load_listas()
+        self.stacked_widget.setCurrentWidget(self.lista_panel)
 
     def show_nova_lista(self):
         """Abre formulário de nova lista"""

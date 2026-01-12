@@ -65,6 +65,7 @@ class ListaResponseDTO:
     cabecalho: Optional[str]
     instrucoes: Optional[str]
     data_criacao: str
+    total_questoes: int = 0  # Adicionado campo para a contagem de questões
     questoes: List[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -76,6 +77,7 @@ class ListaResponseDTO:
             'cabecalho': self.cabecalho,
             'instrucoes': self.instrucoes,
             'data_criacao': self.data_criacao,
+            'total_questoes': self.total_questoes,
             'questoes': self.questoes
         }
 
@@ -89,5 +91,6 @@ class ListaResponseDTO:
             cabecalho=data.get('cabecalho'),
             instrucoes=data.get('instrucoes'),
             data_criacao=data.get('data_criacao', ''),
+            total_questoes=data.get('total_questoes', 0), # Popula o novo campo
             questoes=data.get('questoes', [])
         )
