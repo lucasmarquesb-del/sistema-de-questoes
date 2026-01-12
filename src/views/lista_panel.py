@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt
 
 from src.controllers.lista_controller import criar_lista_controller
 from src.views.lista_form import ListaForm
+from src.views.export_dialog import ExportDialog # Novo import
 from src.utils import ErrorHandler
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,11 @@ class ListaPanel(QWidget):
 
         # Botões de ação
         action_layout = QHBoxLayout()
+        
+        btn_exportar_lista = QPushButton("📄 Exportar Selecionada") # Novo botão
+        btn_exportar_lista.clicked.connect(self.abrir_dialogo_exportacao) # Nova conexão
+        action_layout.addWidget(btn_exportar_lista)
+
         action_layout.addStretch()
         btn_editar_lista = QPushButton("✏️ Editar Selecionada")
         btn_editar_lista.clicked.connect(self.abrir_form_edicao_lista)
@@ -124,5 +130,17 @@ class ListaPanel(QWidget):
                     ErrorHandler.show_error(self, "Erro", "Não foi possível deletar a lista.")
             except Exception as e:
                 ErrorHandler.handle_exception(self, e, "Erro ao deletar lista.")
+
+    def abrir_dialogo_exportacao(self):
+        """Abre o diálogo de exportação para a lista selecionada."""
+        item_selecionado = self.lista_widget.currentItem()
+        if not item_selecionado or item_selecionado.data(Qt.ItemDataRole.UserRole) is None:
+            QMessageBox.warning(self, "Atenção", "Por favor, selecione uma lista para exportar.")
+            return
+
+        id_lista = item_selecionado.data(Qt.ItemDataRole.UserRole)
+        dialog = ExportDialog(id_lista=id_lista, parent=self)
+        dialog.exec()
+
 
 logger.info("ListaPanel carregado.")

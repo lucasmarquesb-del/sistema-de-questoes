@@ -95,6 +95,18 @@ class ListaRepositoryImpl(IListaRepository):
             logger.error(f"Erro ao obter questões da lista no repositório: {e}", exc_info=True)
             return []
 
+    def obter_lista_completa(self, id_lista: int) -> Optional[Dict[str, Any]]:
+        """Obtém os dados completos de uma lista, incluindo suas questões."""
+        try:
+            lista_data = ListaModel.buscar_por_id(id_lista)
+            if lista_data:
+                questoes_data = ListaModel.listar_questoes(id_lista)
+                lista_data['questoes'] = questoes_data
+            return lista_data
+        except Exception as e:
+            logger.error(f"Erro ao obter lista completa no repositório: {e}", exc_info=True)
+            return None
+
     def reordenar_questoes(self, id_lista: int, questoes_ordem: List[tuple[int, int]]) -> bool:
         """Reordena questões de uma lista."""
         # Esta funcionalidade não existe no model atual.

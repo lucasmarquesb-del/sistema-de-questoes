@@ -507,6 +507,10 @@ class IListaRepository(Protocol):
             Lista de questões ordenadas
         """
         ...
+    
+    def obter_lista_completa(self, id_lista: int) -> Optional[Dict[str, Any]]:
+        """Obtém os dados completos de uma lista, incluindo suas questões."""
+        ...
 
     def reordenar_questoes(
         self,
