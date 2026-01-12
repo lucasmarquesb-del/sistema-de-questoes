@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database
+database/questoes.db
+database/*.db
+database/*.db-journal
+
+# Logs
+logs/*.log
+*.log
+
+# Backups
+backups/*.zip
+backups/*.sql
+
+# Exports
+exports/*.pdf
+exports/*.tex
+exports/*.aux
+exports/*.log
+exports/*.out
+
+# Images (user-generated)
+imagens/enunciados/*
+imagens/alternativas/*
+!imagens/enunciados/.gitkeep
+!imagens/alternativas/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+temp/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# PyQt
+*.ui~
+*.qrc~
+
+# LaTeX temporary files
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.out
+*.nav
+*.snm
+*.vrb
+
+# Claude Code
+.claude/

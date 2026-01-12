@@ -1,0 +1,32 @@
+# ============================================
+# SISTEMA DE BANCO DE QUESTÕES EDUCACIONAIS
+# Dependências Python
+# Versão: 1.0.1
+# ============================================
+
+# Framework GUI
+PyQt6==6.6.1
+PyQt6-Qt6==6.6.1
+PyQt6-sip==13.6.0
+
+# Renderização LaTeX
+matplotlib==3.8.2
+numpy==1.26.3
+
+# Processamento de Imagens
+Pillow==10.2.0
+
+# Manipulação de Datas
+python-dateutil==2.8.2
+
+# Geração de LaTeX (opcional)
+pylatex==1.4.2
+
+# Configuração
+configparser==6.0.0
+
+# Logging
+colorlog==6.8.0
+
+# Utilitários
+pathlib==1.0.1

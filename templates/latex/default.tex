@@ -1,0 +1,135 @@
+% ============================================
+% TEMPLATE PADRÃO - SISTEMA DE QUESTÕES
+% Versão: 1.0.1
+% ============================================
+
+\documentclass[12pt,a4paper]{article}
+
+% Pacotes essenciais
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+\usepackage[margin=2cm]{geometry}
+
+% Matemática
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{mathtools}
+
+% Imagens
+\usepackage{graphicx}
+\usepackage{float}
+
+% Listas personalizadas
+\usepackage{enumitem}
+
+% Multicolunas (opcional)
+\usepackage{multicol}
+
+% Cabeçalho e rodapé
+\usepackage{fancyhdr}
+
+% Links e referências
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    pdfauthor={Sistema de Questões},
+    pdftitle={Lista de Exercícios}
+}
+
+% Configurações de página
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\thepage}
+\lhead{Lista de Exercícios}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Espaçamento
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% ============================================
+% INÍCIO DO DOCUMENTO
+% ============================================
+
+\begin{document}
+
+% CABEÇALHO PERSONALIZADO
+\begin{center}
+    {\Large\textbf{[TITULO_LISTA]}}
+\end{center}
+
+\vspace{0.5cm}
+
+\noindent
+\textbf{[NOME_ESCOLA]} \\
+Professor: [NOME_PROFESSOR] \\
+Data: [DATA] \hfill Turma: [TURMA]
+
+\vspace{0.5cm}
+
+% INSTRUÇÕES
+\noindent
+\textit{[INSTRUCOES]}
+
+\vspace{1cm}
+
+% ============================================
+% QUESTÕES
+% ============================================
+
+\begin{enumerate}[leftmargin=*]
+
+% [QUESTOES_AQUI]
+% Formato para cada questão:
+%
+% \item \textbf{([ANO] - [FONTE])}
+%
+% [ENUNCIADO]
+%
+% \begin{center}
+%     \includegraphics[scale=0.7]{[CAMINHO_IMAGEM]}
+% \end{center}
+%
+% \begin{enumerate}[label=\Alph*)]
+%     \item [ALTERNATIVA A]
+%     \item [ALTERNATIVA B]
+%     \item [ALTERNATIVA C]
+%     \item [ALTERNATIVA D]
+%     \item [ALTERNATIVA E]
+% \end{enumerate}
+%
+% \vspace{[ESPACO_RESPOSTA]cm}
+
+\end{enumerate}
+
+% ============================================
+% GABARITO (opcional)
+% ============================================
+
+\newpage
+
+\section*{Gabarito}
+
+\begin{enumerate}[leftmargin=*]
+% [GABARITO_AQUI]
+% Formato: \item Questão 1: [LETRA_CORRETA]
+\end{enumerate}
+
+% ============================================
+% RESOLUÇÕES (opcional)
+% ============================================
+
+\newpage
+
+\section*{Resoluções}
+
+\begin{enumerate}[leftmargin=*]
+% [RESOLUCOES_AQUI]
+% Formato:
+% \item \textbf{Questão 1:}
+%
+% [RESOLUCAO_LATEX]
+\end{enumerate}
+
+\end{document}
