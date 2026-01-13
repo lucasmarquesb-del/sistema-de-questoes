@@ -4,6 +4,7 @@ Substitui tag_controller.py (legacy)
 """
 from typing import Dict, List, Optional, Any
 from services import services
+from src.application.dtos.tag_dto import TagResponseDTO
 
 
 class TagControllerORM:
@@ -93,34 +94,24 @@ class TagControllerORM:
             return None
 
     @staticmethod
-    def obter_arvore_hierarquica() -> List[Dict[str, Any]]:
+    def obter_arvore_hierarquica() -> List[TagResponseDTO]:
         """
         Retorna estrutura hierárquica completa das tags
 
         Returns:
-            Lista de dicts representando a árvore de tags
-
-        Exemplo de retorno:
-            [
-                {
-                    'uuid': 'uuid-1',
-                    'nome': 'Matemática',
-                    'numeracao': '1',
-                    'nivel': 1,
-                    'filhas': [
-                        {
-                            'uuid': 'uuid-2',
-                            'nome': 'Álgebra',
-                            'numeracao': '1.1',
-                            'nivel': 2,
-                            'filhas': [...]
-                        }
-                    ]
-                }
-            ]
+            Lista de TagResponseDTOs representando a árvore de tags
         """
         try:
-            return services.tag.obter_arvore_hierarquica()
+            tree_dicts = services.tag.obter_arvore_hierarquica()
+
+            def convert_to_dto_recursive(node_dict):
+                dto = TagResponseDTO.from_dict(node_dict)
+                if 'filhas' in node_dict and node_dict['filhas']:
+                    dto.filhos = [convert_to_dto_recursive(child) for child in node_dict['filhas']]
+                return dto
+
+            return [convert_to_dto_recursive(root_dict) for root_dict in tree_dicts]
+
         except Exception as e:
             print(f"Erro ao obter árvore hierárquica: {e}")
             return []
