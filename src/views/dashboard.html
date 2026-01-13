@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>MathBank - Question Bank Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1258e2",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .math-font {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white min-h-screen">
+    <div class="flex flex-col h-screen">
+        <!-- Top Navigation Bar -->
+        <header
+            class="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#f0f2f4] dark:border-slate-800 bg-white dark:bg-slate-900 px-10 py-3 z-10">
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-3 text-primary">
+                    <div class="size-8 bg-primary text-white rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined">functions</span>
+                    </div>
+                    <h2 class="text-[#111318] dark:text-white text-xl font-bold leading-tight tracking-[-0.015em]">
+                        MathBank</h2>
+                </div>
+                <div class="hidden md:flex items-center gap-6 ml-4">
+                    <a class="text-primary text-sm font-semibold border-b-2 border-primary pb-1" href="#">Dashboard</a>
+                    <a class="text-[#616f89] dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors"
+                        href="#">Exams</a>
+                    <a class="text-[#616f89] dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors"
+                        href="#">Reports</a>
+
+                </div>
+            </div>
+            <div class="flex flex-1 justify-end gap-4 items-center">
+                <div class="flex gap-3">
+                    <button
+                        class="flex min-w-[140px] cursor-pointer items-center justify-center gap-2 rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold shadow-md hover:bg-blue-700 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">add_circle</span>
+                        <span class="truncate">Create Question</span>
+                    </button>
+                </div>
+                <div class="h-10 w-px bg-[#f0f2f4] dark:border-slate-800 mx-2"></div>
+                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-gray-200"
+                    data-alt="User profile avatar"
+                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCth6Zz1EVo80gspPEhaOTzVqUIGGXB1l5yOFpWLZ2nw1R3obQBcyVdVrtrBDjRA50zm1lnySgSPPtq_hWqk6QtzbOf_dstBMNUHE4DNuaE5ar0XJYsv4w-J0ukDoVp1_WFJsOjX0P77P5o_QZrqh6K14-_DGxoJ9z1mfo7dsGJJ3UyVgzv-TI5Ip8RjqSVu1i_lEy0phWZ8NIIMDRyA_7YlIyOj7DDnwmonJG2ddPprnJrYNfu2DhbLZCGqv4Yt8oElPiAzmR_vKo");'>
+                </div>
+            </div>
+        </header>
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar Navigation -->
+            <aside
+                class="w-72 bg-white dark:bg-slate-900 border-r border-[#f0f2f4] dark:border-slate-800 flex flex-col overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h1 class="text-[#111318] dark:text-white text-base font-bold uppercase tracking-wider">Math
+                                Content</h1>
+                            <p class="text-[#616f89] dark:text-slate-400 text-xs font-normal">Hierarchical Tags</p>
+                        </div>
+                        <span
+                            class="material-symbols-outlined text-[#616f89] cursor-pointer hover:text-primary">unfold_more</span>
+                    </div>
+                    <nav class="flex flex-col gap-1">
+                        <!-- Tree Item Active -->
+                        <div class="group">
+                            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary mb-1">
+                                <span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+                                <span class="material-symbols-outlined text-[20px]">variables</span>
+                                <p class="text-sm font-semibold">1. Algebra</p>
+                            </div>
+                            <!-- Sub items -->
+                            <div class="ml-6 flex flex-col gap-1 border-l border-primary/20 pl-2">
+                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 text-primary">
+                                    <p class="text-xs font-medium">1.1 Functions</p>
+                                </div>
+                                <div
+                                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[#616f89] dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                                    <p class="text-xs font-medium">1.2 Quadratic Equations</p>
+                                </div>
+                                <div
+                                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[#616f89] dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                                    <p class="text-xs font-medium">1.3 Logarithms</p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Other Tree Items -->
+                        <div
+                            class="flex items-center gap-2 px-3 py-2 rounded-lg text-[#111318] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer mt-2">
+                            <span class="material-symbols-outlined text-[18px]">keyboard_arrow_right</span>
+                            <span class="material-symbols-outlined text-[20px]">grid_view</span>
+                            <p class="text-sm font-medium">2. Geometry</p>
+                        </div>
+                        <div
+                            class="flex items-center gap-2 px-3 py-2 rounded-lg text-[#111318] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">keyboard_arrow_right</span>
+                            <span class="material-symbols-outlined text-[20px]">show_chart</span>
+                            <p class="text-sm font-medium">3. Calculus</p>
+                        </div>
+                        <div
+                            class="flex items-center gap-2 px-3 py-2 rounded-lg text-[#111318] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">keyboard_arrow_right</span>
+                            <span class="material-symbols-outlined text-[20px]">bar_chart</span>
+                            <p class="text-sm font-medium">4. Statistics</p>
+                        </div>
+                        <div
+                            class="flex items-center gap-2 px-3 py-2 rounded-lg text-[#111318] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">keyboard_arrow_right</span>
+                            <span class="material-symbols-outlined text-[20px]">change_history</span>
+                            <p class="text-sm font-medium">5. Trigonometry</p>
+                        </div>
+                    </nav>
+                </div>
+                <div class="mt-auto p-6 border-t border-[#f0f2f4] dark:border-slate-800">
+                    <button
+                        class="flex w-full items-center justify-center gap-2 rounded-lg h-10 px-4 bg-white dark:bg-slate-800 border border-primary text-primary text-sm font-bold hover:bg-primary/5 transition-colors mb-4">
+                        <span class="material-symbols-outlined">picture_as_pdf</span>
+                        <span class="truncate">Export to PDF</span>
+                    </button>
+                </div>
+            </aside>
+            <!-- Main Content Area -->
+            <main class="flex-1 flex flex-col overflow-y-auto bg-background-light dark:bg-background-dark p-8">
+                <!-- Breadcrumbs & Dashboard Title -->
+                <div class="mb-6">
+                    <div class="flex items-center gap-2 text-sm mb-2">
+                        <a class="text-[#616f89] dark:text-slate-400 hover:text-primary" href="#">Algebra</a>
+                        <span class="text-[#616f89] dark:text-slate-400">/</span>
+                        <span class="text-[#111318] dark:text-white font-medium">Functions</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-bold text-[#111318] dark:text-white">Question Explorer</h2>
+                        <div class="text-sm text-[#616f89] dark:text-slate-400">Showing 24 of 1,240 results</div>
+                    </div>
+                </div>
+                <!-- Filters & Search Bar -->
+                <div
+                    class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-[#f0f2f4] dark:border-slate-800 mb-8 shadow-sm">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1">
+                            <div class="relative">
+                                <span
+                                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#616f89]">search</span>
+                                <input
+                                    class="w-full pl-10 pr-4 py-2 bg-[#f0f2f4] dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm placeholder:text-[#616f89]"
+                                    placeholder="Search by ID, statement snippet, or tags..." type="text" />
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button
+                                class="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f0f2f4] dark:bg-slate-800 px-4 hover:bg-gray-200 transition-colors">
+                                <span class="text-[#111318] dark:text-white text-sm font-medium">ENEM</span>
+                                <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                            </button>
+                            <button
+                                class="flex h-10 items-center justify-center gap-2 rounded-lg bg-primary/10 text-primary px-4 border border-primary/20">
+                                <span class="text-sm font-medium">Easy</span>
+                                <span class="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                            <button
+                                class="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f0f2f4] dark:bg-slate-800 px-4 hover:bg-gray-200 transition-colors">
+                                <span class="text-[#111318] dark:text-white text-sm font-medium">Type</span>
+                                <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                            </button>
+                            <button
+                                class="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#111318] text-white px-4 hover:bg-black transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">tune</span>
+                                <span class="text-sm font-medium">Filters</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Questions Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-12">
+                    <!-- Question Card 1 -->
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-[#f0f2f4] dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-primary font-bold text-sm tracking-wide">#Q-1042</span>
+                            <div class="flex items-center gap-2 text-[#616f89]">
+                                <span class="material-symbols-outlined text-[20px]"
+                                    title="Objective">radio_button_checked</span>
+                                <span
+                                    class="material-symbols-outlined text-[20px] cursor-pointer hover:text-primary transition-colors">more_vert</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex-1">
+                            <h3 class="text-[#111318] dark:text-white font-semibold mb-2 line-clamp-1">Function Limits
+                                at Infinity</h3>
+                            <div
+                                class="p-4 bg-[#f8f9fa] dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700 min-h-[80px] flex items-center justify-center">
+                                <p class="math-font text-lg text-center">
+                                    f(x) = lim<sub>x→∞</sub> (x² + 2x + 1) / (3x² - 5)
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-auto pt-4">
+                            <span
+                                class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">ENEM</span>
+                            <span
+                                class="px-2 py-1 rounded bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px] font-bold uppercase">Easy</span>
+                            <span
+                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[#616f89] dark:text-slate-400 text-[10px] font-bold uppercase">Functions</span>
+                        </div>
+                    </div>
+                    <!-- Question Card 2 -->
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-[#f0f2f4] dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-primary font-bold text-sm tracking-wide">#Q-2051</span>
+                            <div class="flex items-center gap-2 text-[#616f89]">
+                                <span class="material-symbols-outlined text-[20px]" title="Discursive">edit_note</span>
+                                <span
+                                    class="material-symbols-outlined text-[20px] cursor-pointer hover:text-primary transition-colors">more_vert</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex-1">
+                            <h3 class="text-[#111318] dark:text-white font-semibold mb-2 line-clamp-1">Quadratic Roots
+                                Properties</h3>
+                            <div
+                                class="p-4 bg-[#f8f9fa] dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700 min-h-[80px] flex items-center justify-center">
+                                <p class="math-font text-lg text-center">
+                                    ax² + bx + c = 0, Δ = b² - 4ac
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-auto pt-4">
+                            <span
+                                class="px-2 py-1 rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase">Hard</span>
+                            <span
+                                class="px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold uppercase">UTFPR</span>
+                            <span
+                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[#616f89] dark:text-slate-400 text-[10px] font-bold uppercase">Algebra</span>
+                        </div>
+                    </div>
+                    <!-- Question Card 3 -->
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-[#f0f2f4] dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-primary font-bold text-sm tracking-wide">#Q-4592</span>
+                            <div class="flex items-center gap-2 text-[#616f89]">
+                                <span class="material-symbols-outlined text-[20px]"
+                                    title="Objective">radio_button_checked</span>
+                                <span
+                                    class="material-symbols-outlined text-[20px] cursor-pointer hover:text-primary transition-colors">more_vert</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex-1">
+                            <h3 class="text-[#111318] dark:text-white font-semibold mb-2 line-clamp-1">Definite Integral
+                                Areas</h3>
+                            <div
+                                class="p-4 bg-[#f8f9fa] dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700 min-h-[80px] flex items-center justify-center">
+                                <p class="math-font text-lg text-center">
+                                    ∫<sub>a</sub><sup>b</sup> x² dx = [x³/3]<sub>a</sub><sup>b</sup>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-auto pt-4">
+                            <span
+                                class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">Calculus</span>
+                            <span
+                                class="px-2 py-1 rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase">Hard</span>
+                            <span
+                                class="px-2 py-1 rounded bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-[10px] font-bold uppercase">Review
+                                Needed</span>
+                        </div>
+                    </div>
+                    <!-- Question Card 4 -->
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-[#f0f2f4] dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-primary font-bold text-sm tracking-wide">#Q-1102</span>
+                            <div class="flex items-center gap-2 text-[#616f89]">
+                                <span class="material-symbols-outlined text-[20px]"
+                                    title="Objective">radio_button_checked</span>
+                                <span
+                                    class="material-symbols-outlined text-[20px] cursor-pointer hover:text-primary transition-colors">more_vert</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex-1">
+                            <h3 class="text-[#111318] dark:text-white font-semibold mb-2 line-clamp-1">Set Intersections
+                            </h3>
+                            <div
+                                class="p-4 bg-[#f8f9fa] dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700 min-h-[80px] flex items-center justify-center">
+                                <p class="math-font text-lg text-center">
+                                    A ∩ (B ∪ C) = (A ∩ B) ∪ (A ∩ C)
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-auto pt-4">
+                            <span
+                                class="px-2 py-1 rounded bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px] font-bold uppercase">Basic</span>
+                            <span
+                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[#616f89] dark:text-slate-400 text-[10px] font-bold uppercase">Set
+                                Theory</span>
+                        </div>
+                    </div>
+                    <!-- Question Card 5 -->
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-[#f0f2f4] dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-primary font-bold text-sm tracking-wide">#Q-3304</span>
+                            <div class="flex items-center gap-2 text-[#616f89]">
+                                <span class="material-symbols-outlined text-[20px]"
+                                    title="Objective">radio_button_checked</span>
+                                <span
+                                    class="material-symbols-outlined text-[20px] cursor-pointer hover:text-primary transition-colors">more_vert</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex-1">
+                            <h3 class="text-[#111318] dark:text-white font-semibold mb-2 line-clamp-1">Matrix
+                                Determinants</h3>
+                            <div
+                                class="p-4 bg-[#f8f9fa] dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700 min-h-[80px] flex items-center justify-center">
+                                <p class="math-font text-lg text-center">
+                                    det(A · B) = det(A) · det(B)
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-auto pt-4">
+                            <span
+                                class="px-2 py-1 rounded bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 text-[10px] font-bold uppercase">Medium</span>
+                            <span
+                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[#616f89] dark:text-slate-400 text-[10px] font-bold uppercase">Matrices</span>
+                        </div>
+                    </div>
+                    <!-- Question Card 6 -->
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-[#f0f2f4] dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-primary font-bold text-sm tracking-wide">#Q-5521</span>
+                            <div class="flex items-center gap-2 text-[#616f89]">
+                                <span class="material-symbols-outlined text-[20px]" title="Discursive">edit_note</span>
+                                <span
+                                    class="material-symbols-outlined text-[20px] cursor-pointer hover:text-primary transition-colors">more_vert</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex-1">
+                            <h3 class="text-[#111318] dark:text-white font-semibold mb-2 line-clamp-1">Complex Polar
+                                Forms</h3>
+                            <div
+                                class="p-4 bg-[#f8f9fa] dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700 min-h-[80px] flex items-center justify-center">
+                                <p class="math-font text-lg text-center">
+                                    z = r(cos θ + i sin θ) = re<sup>iθ</sup>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-auto pt-4">
+                            <span
+                                class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">ENEM</span>
+                            <span
+                                class="px-2 py-1 rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase">Hard</span>
+                            <span
+                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[#616f89] dark:text-slate-400 text-[10px] font-bold uppercase">Complex
+                                Num</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+
+</html>
