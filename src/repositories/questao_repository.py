@@ -158,17 +158,25 @@ class QuestaoRepository(BaseRepository[Questao]):
         Args:
             filtros: Dicionário com os filtros
                 - fonte: sigla da fonte
-                - ano: ano inteiro
+                - ano_inicio: ano inicial
+                - ano_fim: ano final
                 - tags: lista de nomes de tags
                 - dificuldade: código da dificuldade
                 - tipo: código do tipo de questão
                 - titulo: texto para buscar no título
                 - enunciado: texto para buscar no enunciado
+                - ativa: booleano para status ativo
 
         Returns:
             Lista de questões que atendem aos critérios
         """
-        query = self.session.query(Questao).filter(Questao.ativo == True)
+        query = self.session.query(Questao)
+
+        # Filtro por ativa (padrão é True se não especificado)
+        if 'ativa' in filtros:
+            query = query.filter(Questao.ativo == filtros['ativa'])
+        else:
+            query = query.filter(Questao.ativo == True)
 
         # Filtro por fonte
         if filtros.get('fonte'):
@@ -177,9 +185,17 @@ class QuestaoRepository(BaseRepository[Questao]):
             )
 
         # Filtro por ano
-        if filtros.get('ano'):
+        if filtros.get('ano_inicio') and filtros.get('ano_fim'):
             query = query.join(AnoReferencia).filter(
-                AnoReferencia.ano == filtros['ano']
+                AnoReferencia.ano.between(filtros['ano_inicio'], filtros['ano_fim'])
+            )
+        elif filtros.get('ano_inicio'):
+            query = query.join(AnoReferencia).filter(
+                AnoReferencia.ano >= filtros['ano_inicio']
+            )
+        elif filtros.get('ano_fim'):
+            query = query.join(AnoReferencia).filter(
+                AnoReferencia.ano <= filtros['ano_fim']
             )
 
         # Filtro por dificuldade
@@ -196,16 +212,18 @@ class QuestaoRepository(BaseRepository[Questao]):
 
         # Filtro por tags (AND - questão deve ter todas as tags)
         if filtros.get('tags'):
-            for nome_tag in filtros['tags']:
-                query = query.join(Questao.tags).filter(Tag.nome == nome_tag)
+            for tag_id in filtros['tags']:
+                query = query.join(Questao.tags).filter(Tag.id == tag_id)
 
-        # Filtro por título
+        # Filtro por título ou enunciado
         if filtros.get('titulo'):
-            query = query.filter(Questao.titulo.ilike(f"%{filtros['titulo']}%"))
-
-        # Filtro por enunciado
-        if filtros.get('enunciado'):
-            query = query.filter(Questao.enunciado.ilike(f"%{filtros['enunciado']}%"))
+            search_term = f"%{filtros['titulo']}%"
+            query = query.filter(
+                or_(
+                    Questao.titulo.ilike(search_term),
+                    Questao.enunciado.ilike(search_term)
+                )
+            )
 
         return query.all()
 

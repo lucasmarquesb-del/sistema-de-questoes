@@ -208,9 +208,7 @@ class SearchPanel(QWidget):
         ano_inicio = self.ano_de_spin.value()
         ano_fim = self.ano_ate_spin.value()
         
-        dificuldade_texto = self.dificuldade_combo.currentText()
-        dificuldade_map = {"FÁCIL": 1, "MÉDIO": 2, "DIFÍCIL": 3}
-        id_dificuldade = dificuldade_map.get(dificuldade_texto)
+        dificuldade_texto = self.dificuldade_combo.currentText() if "Todas" not in self.dificuldade_combo.currentText() else None
         
         tags = self.tag_tree_widget.get_selected_tag_ids()
 
@@ -220,7 +218,7 @@ class SearchPanel(QWidget):
             ano_inicio=ano_inicio,
             ano_fim=ano_fim,
             fonte=fonte,
-            id_dificuldade=id_dificuldade,
+            dificuldade=dificuldade_texto,
             tags=tags,
             ativa=True
         )

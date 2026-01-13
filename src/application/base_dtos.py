@@ -132,7 +132,9 @@ class FiltroQuestaoDTO:
     """DTO para filtros de busca de questões"""
     titulo: Optional[str] = None
     tipo: Optional[str] = None
-    ano: Optional[int] = None
+    ano_inicio: Optional[int] = None
+    ano_fim: Optional[int] = None
     fonte: Optional[str] = None
     dificuldade: Optional[str] = None
     tags: List[str] = field(default_factory=list)
+    ativa: bool = True
