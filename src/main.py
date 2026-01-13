@@ -18,8 +18,8 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import Qt
 import logging
 
-# Importar módulo de banco de dados
-from src.models.database import db, initialize_db, verify_db
+# Importar gerenciador de sessões ORM
+from src.database.session_manager import session_manager
 
 # Configuração de logging
 log_dir = project_root / 'logs'
@@ -42,38 +42,35 @@ logger.info(f"Logging configurado para salvar em arquivo: {log_file.resolve()}")
 
 def setup_database() -> bool:
     """
-    Configura o banco de dados na primeira execução.
-    Verifica se o banco existe, se não, inicializa.
+    Configura o banco de dados ORM.
+    Verifica se o banco existe, se não, cria as tabelas.
 
     Returns:
         bool: True se banco está pronto, False caso contrário
     """
     try:
-        db_path = db.get_db_path()
+        db_path = Path('database/sistema_questoes_v2.db')
 
-        # Se banco não existe, inicializar
+        # Se banco não existe, criar tabelas
         if not db_path.exists():
-            logger.info("Banco de dados não encontrado. Inicializando...")
-            if not initialize_db():
-                logger.error("Falha ao inicializar banco de dados")
-                return False
-            logger.info("Banco de dados inicializado com sucesso")
+            logger.info("Banco de dados não encontrado. Criando tabelas ORM...")
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            session_manager.create_all_tables()
+            logger.info("Banco de dados ORM inicializado com sucesso")
         else:
-            logger.info(f"Banco de dados encontrado: {db_path}")
+            logger.info(f"Banco de dados ORM encontrado: {db_path}")
 
-        # Verificar integridade
-        if not verify_db():
-            logger.warning("Problemas de integridade detectados")
-            # Tentar reinicializar
-            logger.info("Tentando reinicializar banco de dados...")
-            if not initialize_db():
-                logger.error("Falha ao reinicializar banco")
-                return False
+        # Verificar se conseguimos conectar
+        with session_manager.session_scope() as session:
+            # Teste básico de conexão
+            from src.models.orm import TipoQuestao
+            session.query(TipoQuestao).first()
 
+        logger.info("Conexão com banco de dados ORM validada")
         return True
 
     except Exception as e:
-        logger.error(f"Erro ao configurar banco de dados: {e}")
+        logger.error(f"Erro ao configurar banco de dados ORM: {e}")
         return False
 
 
@@ -147,12 +144,8 @@ def main():
         return 1
 
     finally:
-        # Fechar conexão com banco
-        try:
-            db.disconnect()
-            logger.info("Conexão com banco de dados fechada")
-        except:
-            pass
+        # Nota: O session_manager gerencia conexões automaticamente
+        logger.info("Aplicação finalizada")
 
 
 if __name__ == "__main__":

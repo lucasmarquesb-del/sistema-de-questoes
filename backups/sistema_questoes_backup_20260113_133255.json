@@ -1,0 +1,789 @@
+{
+  "metadata": {
+    "data_backup": "2026-01-13T13:32:55.708889",
+    "versao_schema": "1.x"
+  },
+  "tabelas": {
+    "tag": {
+      "colunas": [
+        "id_tag",
+        "nome",
+        "numeracao",
+        "nivel",
+        "id_tag_pai",
+        "ativo",
+        "ordem"
+      ],
+      "registros": [
+        {
+          "id_tag": 1,
+          "nome": "NÚMEROS E OPERAÇÕES",
+          "numeracao": "1",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 1
+        },
+        {
+          "id_tag": 2,
+          "nome": "ÁLGEBRA",
+          "numeracao": "2",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 2
+        },
+        {
+          "id_tag": 3,
+          "nome": "GEOMETRIA",
+          "numeracao": "3",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 3
+        },
+        {
+          "id_tag": 4,
+          "nome": "TRIGONOMETRIA",
+          "numeracao": "4",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 4
+        },
+        {
+          "id_tag": 5,
+          "nome": "COMBINATÓRIA",
+          "numeracao": "5",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 5
+        },
+        {
+          "id_tag": 6,
+          "nome": "PROBABILIDADE",
+          "numeracao": "6",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 6
+        },
+        {
+          "id_tag": 7,
+          "nome": "ESTATÍSTICA",
+          "numeracao": "7",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 7
+        },
+        {
+          "id_tag": 8,
+          "nome": "FUNÇÕES",
+          "numeracao": "2.1",
+          "nivel": 2,
+          "id_tag_pai": 2,
+          "ativo": 1,
+          "ordem": 1
+        },
+        {
+          "id_tag": 9,
+          "nome": "EQUAÇÕES",
+          "numeracao": "2.2",
+          "nivel": 2,
+          "id_tag_pai": 2,
+          "ativo": 1,
+          "ordem": 2
+        },
+        {
+          "id_tag": 10,
+          "nome": "PROGRESSÕES",
+          "numeracao": "2.3",
+          "nivel": 2,
+          "id_tag_pai": 2,
+          "ativo": 1,
+          "ordem": 3
+        },
+        {
+          "id_tag": 11,
+          "nome": "FUNÇÃO AFIM",
+          "numeracao": "2.1.1",
+          "nivel": 3,
+          "id_tag_pai": 8,
+          "ativo": 1,
+          "ordem": 1
+        },
+        {
+          "id_tag": 12,
+          "nome": "FUNÇÃO QUADRÁTICA",
+          "numeracao": "2.1.2",
+          "nivel": 3,
+          "id_tag_pai": 8,
+          "ativo": 1,
+          "ordem": 2
+        },
+        {
+          "id_tag": 13,
+          "nome": "FUNÇÃO EXPONENCIAL",
+          "numeracao": "2.1.3",
+          "nivel": 3,
+          "id_tag_pai": 8,
+          "ativo": 1,
+          "ordem": 3
+        },
+        {
+          "id_tag": 14,
+          "nome": "FUNÇÃO LOGARÍTMICA",
+          "numeracao": "2.1.4",
+          "nivel": 3,
+          "id_tag_pai": 8,
+          "ativo": 1,
+          "ordem": 4
+        },
+        {
+          "id_tag": 15,
+          "nome": "FUNÇÃO TRIGONOMÉTRICA",
+          "numeracao": "2.1.5",
+          "nivel": 3,
+          "id_tag_pai": 8,
+          "ativo": 1,
+          "ordem": 5
+        },
+        {
+          "id_tag": 16,
+          "nome": "PROGRESSÃO ARITMÉTICA",
+          "numeracao": "2.3.1",
+          "nivel": 3,
+          "id_tag_pai": 10,
+          "ativo": 1,
+          "ordem": 1
+        },
+        {
+          "id_tag": 17,
+          "nome": "PROGRESSÃO GEOMÉTRICA",
+          "numeracao": "2.3.2",
+          "nivel": 3,
+          "id_tag_pai": 10,
+          "ativo": 1,
+          "ordem": 2
+        },
+        {
+          "id_tag": 18,
+          "nome": "GEOMETRIA PLANA",
+          "numeracao": "3.1",
+          "nivel": 2,
+          "id_tag_pai": 3,
+          "ativo": 1,
+          "ordem": 1
+        },
+        {
+          "id_tag": 19,
+          "nome": "GEOMETRIA ESPACIAL",
+          "numeracao": "3.2",
+          "nivel": 2,
+          "id_tag_pai": 3,
+          "ativo": 1,
+          "ordem": 2
+        },
+        {
+          "id_tag": 20,
+          "nome": "GEOMETRIA ANALÍTICA",
+          "numeracao": "3.3",
+          "nivel": 2,
+          "id_tag_pai": 3,
+          "ativo": 1,
+          "ordem": 3
+        },
+        {
+          "id_tag": 21,
+          "nome": "ENEM",
+          "numeracao": "V1",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 100
+        },
+        {
+          "id_tag": 22,
+          "nome": "FUVEST",
+          "numeracao": "V2",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 101
+        },
+        {
+          "id_tag": 23,
+          "nome": "UNICAMP",
+          "numeracao": "V3",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 102
+        },
+        {
+          "id_tag": 24,
+          "nome": "UNESP",
+          "numeracao": "V4",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 103
+        },
+        {
+          "id_tag": 25,
+          "nome": "UERJ",
+          "numeracao": "V5",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 104
+        },
+        {
+          "id_tag": 26,
+          "nome": "ITA",
+          "numeracao": "V6",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 105
+        },
+        {
+          "id_tag": 27,
+          "nome": "IME",
+          "numeracao": "V7",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 106
+        },
+        {
+          "id_tag": 28,
+          "nome": "MILITAR",
+          "numeracao": "V8",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 107
+        },
+        {
+          "id_tag": 29,
+          "nome": "E.F.2",
+          "numeracao": "N1",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 200
+        },
+        {
+          "id_tag": 30,
+          "nome": "E.M.",
+          "numeracao": "N2",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 201
+        },
+        {
+          "id_tag": 31,
+          "nome": "E.J.A.",
+          "numeracao": "N3",
+          "nivel": 1,
+          "id_tag_pai": null,
+          "ativo": 1,
+          "ordem": 202
+        }
+      ],
+      "total": 31
+    },
+    "dificuldade": {
+      "colunas": [
+        "id_dificuldade",
+        "nome",
+        "descricao",
+        "ordem"
+      ],
+      "registros": [
+        {
+          "id_dificuldade": 1,
+          "nome": "FÁCIL",
+          "descricao": "Questões de nível básico",
+          "ordem": 1
+        },
+        {
+          "id_dificuldade": 2,
+          "nome": "MÉDIO",
+          "descricao": "Questões de nível intermediário",
+          "ordem": 2
+        },
+        {
+          "id_dificuldade": 3,
+          "nome": "DIFÍCIL",
+          "descricao": "Questões de nível avançado",
+          "ordem": 3
+        }
+      ],
+      "total": 3
+    },
+    "questao": {
+      "colunas": [
+        "id_questao",
+        "titulo",
+        "enunciado",
+        "tipo",
+        "ano",
+        "fonte",
+        "id_dificuldade",
+        "imagem_enunciado",
+        "escala_imagem_enunciado",
+        "resolucao",
+        "gabarito_discursiva",
+        "observacoes",
+        "data_criacao",
+        "data_modificacao",
+        "ativo"
+      ],
+      "registros": [
+        {
+          "id_questao": 1,
+          "titulo": "Teste de Função Quadrática",
+          "enunciado": "Qual o valor de x na equação $x^2 - 5x + 6 = 0$?",
+          "tipo": "OBJETIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 2,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "Usando Bhaskara...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:08",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 2,
+          "titulo": "Questão Discursiva de Teste",
+          "enunciado": "Explique o Teorema de Pitágoras e demonstre sua aplicação.",
+          "tipo": "DISCURSIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 3,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "O Teorema de Pitágoras estabelece que...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:08",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 3,
+          "titulo": "Teste de Função Quadrática",
+          "enunciado": "Qual o valor de x na equação $x^2 - 5x + 6 = 0$?",
+          "tipo": "OBJETIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 2,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "Usando Bhaskara...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:36",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 4,
+          "titulo": "Questão Discursiva de Teste",
+          "enunciado": "Explique o Teorema de Pitágoras e demonstre sua aplicação.",
+          "tipo": "DISCURSIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 3,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "O Teorema de Pitágoras estabelece que...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:36",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 5,
+          "titulo": "Teste de Função Quadrática",
+          "enunciado": "Qual o valor de x na equação $x^2 - 5x + 6 = 0$?",
+          "tipo": "OBJETIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 2,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "Usando Bhaskara...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:39",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 6,
+          "titulo": "Questão Discursiva de Teste",
+          "enunciado": "Explique o Teorema de Pitágoras e demonstre sua aplicação.",
+          "tipo": "DISCURSIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 3,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "O Teorema de Pitágoras estabelece que...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:39",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 7,
+          "titulo": null,
+          "enunciado": "Teste direto",
+          "tipo": "OBJETIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 2,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": null,
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:11:46",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 8,
+          "titulo": "Teste de Função Quadrática",
+          "enunciado": "Qual o valor de x na equação $x^2 - 5x + 6 = 0$?",
+          "tipo": "OBJETIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 2,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "Usando Bhaskara...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:12:08",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 9,
+          "titulo": "Questão Discursiva de Teste",
+          "enunciado": "Explique o Teorema de Pitágoras e demonstre sua aplicação.",
+          "tipo": "DISCURSIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 3,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "O Teorema de Pitágoras estabelece que...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:12:08",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 10,
+          "titulo": "Teste de Função Quadrática",
+          "enunciado": "Qual o valor de x na equação $x^2 - 5x + 6 = 0$?",
+          "tipo": "OBJETIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 2,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "Usando Bhaskara...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:12:47",
+          "data_modificacao": null,
+          "ativo": 1
+        },
+        {
+          "id_questao": 11,
+          "titulo": "Questão Discursiva de Teste",
+          "enunciado": "Explique o Teorema de Pitágoras e demonstre sua aplicação.",
+          "tipo": "DISCURSIVA",
+          "ano": 2024,
+          "fonte": "TESTE",
+          "id_dificuldade": 3,
+          "imagem_enunciado": null,
+          "escala_imagem_enunciado": 0.7,
+          "resolucao": "O Teorema de Pitágoras estabelece que...",
+          "gabarito_discursiva": null,
+          "observacoes": null,
+          "data_criacao": "2026-01-12 20:12:47",
+          "data_modificacao": null,
+          "ativo": 1
+        }
+      ],
+      "total": 11
+    },
+    "alternativa": {
+      "colunas": [
+        "id_alternativa",
+        "id_questao",
+        "letra",
+        "texto",
+        "imagem",
+        "escala_imagem",
+        "correta"
+      ],
+      "registros": [
+        {
+          "id_alternativa": 1,
+          "id_questao": 8,
+          "letra": "A",
+          "texto": "Opção A incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 2,
+          "id_questao": 8,
+          "letra": "B",
+          "texto": "Opção B correta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 1
+        },
+        {
+          "id_alternativa": 3,
+          "id_questao": 8,
+          "letra": "C",
+          "texto": "Opção C incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 4,
+          "id_questao": 8,
+          "letra": "D",
+          "texto": "Opção D incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 5,
+          "id_questao": 8,
+          "letra": "E",
+          "texto": "Opção E incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 6,
+          "id_questao": 10,
+          "letra": "A",
+          "texto": "Opção A incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 7,
+          "id_questao": 10,
+          "letra": "B",
+          "texto": "Opção B correta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 1
+        },
+        {
+          "id_alternativa": 8,
+          "id_questao": 10,
+          "letra": "C",
+          "texto": "Opção C incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 9,
+          "id_questao": 10,
+          "letra": "D",
+          "texto": "Opção D incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        },
+        {
+          "id_alternativa": 10,
+          "id_questao": 10,
+          "letra": "E",
+          "texto": "Opção E incorreta",
+          "imagem": null,
+          "escala_imagem": null,
+          "correta": 0
+        }
+      ],
+      "total": 10
+    },
+    "questao_tag": {
+      "colunas": [
+        "id_questao",
+        "id_tag",
+        "data_associacao"
+      ],
+      "registros": [
+        {
+          "id_questao": 8,
+          "id_tag": 1,
+          "data_associacao": "2026-01-12 20:12:08"
+        },
+        {
+          "id_questao": 8,
+          "id_tag": 2,
+          "data_associacao": "2026-01-12 20:12:08"
+        },
+        {
+          "id_questao": 9,
+          "id_tag": 1,
+          "data_associacao": "2026-01-12 20:12:08"
+        },
+        {
+          "id_questao": 10,
+          "id_tag": 1,
+          "data_associacao": "2026-01-12 20:12:47"
+        },
+        {
+          "id_questao": 10,
+          "id_tag": 2,
+          "data_associacao": "2026-01-12 20:12:47"
+        },
+        {
+          "id_questao": 11,
+          "id_tag": 1,
+          "data_associacao": "2026-01-12 20:12:47"
+        }
+      ],
+      "total": 6
+    },
+    "lista": {
+      "colunas": [
+        "id_lista",
+        "titulo",
+        "tipo",
+        "cabecalho",
+        "instrucoes",
+        "data_criacao"
+      ],
+      "registros": [
+        {
+          "id_lista": 1,
+          "titulo": "lista",
+          "tipo": "atividades",
+          "cabecalho": "gfhgvjbknkml",
+          "instrucoes": "hgkjl;nm'\n,",
+          "data_criacao": "2026-01-13 13:24:08"
+        }
+      ],
+      "total": 1
+    },
+    "lista_questao": {
+      "colunas": [
+        "id_lista",
+        "id_questao",
+        "data_adicao"
+      ],
+      "registros": [
+        {
+          "id_lista": 1,
+          "id_questao": 1,
+          "data_adicao": "2026-01-13 13:24:08"
+        },
+        {
+          "id_lista": 1,
+          "id_questao": 2,
+          "data_adicao": "2026-01-13 13:24:08"
+        }
+      ],
+      "total": 2
+    },
+    "questao_versao": {
+      "colunas": [
+        "id_questao_original",
+        "id_questao_versao",
+        "observacao",
+        "data_vinculo"
+      ],
+      "registros": [],
+      "total": 0
+    },
+    "configuracao": {
+      "colunas": [
+        "chave",
+        "valor",
+        "descricao"
+      ],
+      "registros": [
+        {
+          "chave": "backup_automatico",
+          "valor": "0",
+          "descricao": "Ativar backup automático (0=não, 1=sim)"
+        },
+        {
+          "chave": "backup_periodicidade",
+          "valor": "7",
+          "descricao": "Dias entre backups automáticos"
+        },
+        {
+          "chave": "backup_manter",
+          "valor": "5",
+          "descricao": "Quantidade de backups a manter"
+        },
+        {
+          "chave": "template_padrao",
+          "valor": "default.tex",
+          "descricao": "Template LaTeX padrão"
+        },
+        {
+          "chave": "latex_colunas_padrao",
+          "valor": "1",
+          "descricao": "Colunas padrão na exportação (1 ou 2)"
+        },
+        {
+          "chave": "latex_incluir_gabarito",
+          "valor": "1",
+          "descricao": "Incluir gabarito por padrão"
+        },
+        {
+          "chave": "latex_incluir_resolucao",
+          "valor": "0",
+          "descricao": "Incluir resoluções por padrão"
+        },
+        {
+          "chave": "latex_escala_imagem_padrao",
+          "valor": "0.7",
+          "descricao": "Escala padrão para imagens no LaTeX"
+        },
+        {
+          "chave": "randomizar_questoes_padrao",
+          "valor": "0",
+          "descricao": "Randomizar questões por padrão ao exportar"
+        }
+      ],
+      "total": 9
+    }
+  }
+}

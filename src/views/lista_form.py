@@ -13,8 +13,8 @@ import logging
 from typing import List
 
 from src.utils import ErrorHandler
-from src.controllers.lista_controller import criar_lista_controller
-from src.controllers.questao_controller_refactored import criar_questao_controller
+from src.controllers.adapters import criar_lista_controller
+from src.controllers.adapters import criar_questao_controller
 from src.application.dtos import ListaCreateDTO, ListaUpdateDTO, QuestaoResponseDTO
 
 logger = logging.getLogger(__name__)

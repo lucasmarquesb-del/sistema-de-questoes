@@ -12,7 +12,8 @@
 2. ✅ **SQLAlchemy ORM** - Migrar de SQL raw para ORM completo
 3. ✅ **Normalização** - Separar dados em tabelas específicas
 4. ✅ **Busca por Nome** - Usuário nunca interage diretamente com IDs/UUIDs
-5. ✅ **Redução de Logging** - Apenas logs essenciais
+5. ✅ **Tabela Centralizada de Imagens** - Evitar duplicação, usar hash MD5
+6. ✅ **Redução de Logging** - Apenas logs essenciais
 
 ---
 
@@ -28,7 +29,7 @@ questao
 ├── ano (INTEGER)
 ├── fonte (VARCHAR)
 ├── id_dificuldade (INTEGER FK)
-├── imagem_enunciado
+├── imagem_enunciado (VARCHAR - CAMINHO DO ARQUIVO)    # ❌ Duplicação possível
 ├── escala_imagem_enunciado
 ├── resolucao
 ├── gabarito_discursiva
@@ -40,9 +41,13 @@ alternativa
 ├── id_questao (INTEGER FK)
 ├── letra (A-E)
 ├── texto
-├── imagem
+├── imagem (VARCHAR - CAMINHO DO ARQUIVO)              # ❌ Duplicação possível
 ├── escala_imagem
 └── correta (BOOLEAN)
+
+# ⚠️ PROBLEMA: Mesma imagem pode ser salva várias vezes
+# ⚠️ PROBLEMA: Sem controle de duplicatas
+# ⚠️ PROBLEMA: Dificulta backup e gerenciamento
 ```
 
 ### NOVA (Versão 2.0)
@@ -58,7 +63,7 @@ questao
 ├── uuid_fonte (TEXT FK)               # FK para fonte_questao
 ├── uuid_ano_referencia (TEXT FK)      # FK para ano_referencia
 ├── uuid_dificuldade (TEXT FK)         # FK para dificuldade
-├── imagem_enunciado (VARCHAR)
+├── uuid_imagem_enunciado (TEXT FK NULL) # FK para imagem
 ├── escala_imagem_enunciado (DECIMAL)
 ├── observacoes (TEXT)
 ├── data_criacao (DATETIME)
@@ -71,9 +76,7 @@ questao
 tipo_questao
 ├── uuid (TEXT PRIMARY KEY)
 ├── codigo (VARCHAR UNIQUE)            # 'OBJETIVA', 'DISCURSIVA'
-├── nome (VARCHAR)                     # 'Questão Objetiva', 'Questão Discursiva'
-├── descricao (TEXT)
-└── ativo (BOOLEAN)
+└── nome (VARCHAR)                     # 'Questão Objetiva', 'Questão Discursiva'
 ```
 
 #### 🔑 Tabela: fonte_questao (NOVA)
@@ -83,7 +86,6 @@ fonte_questao
 ├── sigla (VARCHAR UNIQUE)             # 'ENEM', 'FUVEST', 'AUTORAL'
 ├── nome_completo (VARCHAR)            # 'Exame Nacional do Ensino Médio'
 ├── tipo_instituicao (VARCHAR)         # 'VESTIBULAR', 'CONCURSO', 'AUTORAL'
-├── ativo (BOOLEAN)
 └── data_criacao (DATETIME)
 ```
 
@@ -92,41 +94,21 @@ fonte_questao
 ano_referencia
 ├── uuid (TEXT PRIMARY KEY)
 ├── ano (INTEGER UNIQUE)               # 2024, 2025, etc.
-├── semestre (INTEGER NULL)            # 1, 2 (NULL se não aplicável)
-├── descricao (VARCHAR)                # '2024 - 1º Semestre', '2025'
+├── descricao (VARCHAR)                # '2024', '2025'
 └── ativo (BOOLEAN)
 ```
 
-#### 🔑 Tabela: resposta_objetiva (NOVA - Separada)
+#### 🔑 Tabela: resposta_questao (NOVA - Unificada)
 ```
-resposta_objetiva
+resposta_questao
 ├── uuid (TEXT PRIMARY KEY)
-├── uuid_questao (TEXT UNIQUE FK)      # FK para questao
-├── uuid_alternativa_correta (TEXT FK) # FK para alternativa
-├── justificativa (TEXT)               # Explicação da resposta correta
+├── uuid_questao (TEXT UNIQUE FK)      # FK para questao (1:1)
+├── uuid_alternativa_correta (TEXT FK NULL) # FK para alternativa (apenas objetivas)
+├── gabarito_discursivo (TEXT NULL)    # Gabarito LaTeX (apenas discursivas)
+├── resolucao (TEXT)                   # Resolução detalhada em LaTeX
+├── justificativa (TEXT)               # Explicação/critérios de avaliação
+├── autor_resolucao (VARCHAR)          # Autor da resolução
 └── data_criacao (DATETIME)
-```
-
-#### 🔑 Tabela: resposta_discursiva (NOVA - Separada)
-```
-resposta_discursiva
-├── uuid (TEXT PRIMARY KEY)
-├── uuid_questao (TEXT UNIQUE FK)      # FK para questao
-├── gabarito (TEXT)                    # LaTeX
-├── criterios_avaliacao (TEXT)
-└── data_criacao (DATETIME)
-```
-
-#### 🔑 Tabela: resolucao_questao (NOVA - Separada)
-```
-resolucao_questao
-├── uuid (TEXT PRIMARY KEY)
-├── uuid_questao (TEXT FK)             # FK para questao
-├── numero_versao (INTEGER)            # Múltiplas resoluções possíveis
-├── conteudo (TEXT)                    # LaTeX
-├── autor (VARCHAR)
-├── data_criacao (DATETIME)
-└── principal (BOOLEAN)                # Resolução principal/oficial
 ```
 
 #### 🔑 Tabela: alternativa
@@ -137,7 +119,7 @@ alternativa
 ├── letra (CHAR)                       # A, B, C, D, E
 ├── ordem (INTEGER)                    # 1, 2, 3, 4, 5 (para randomização)
 ├── texto (TEXT)
-├── imagem (VARCHAR)
+├── uuid_imagem (TEXT FK NULL)         # FK para imagem
 ├── escala_imagem (DECIMAL)
 └── data_criacao (DATETIME)
 ```
@@ -158,10 +140,30 @@ tag
 ```
 dificuldade
 ├── uuid (TEXT PRIMARY KEY)
-├── codigo (VARCHAR UNIQUE)            # 'FACIL', 'MEDIO', 'DIFICIL'
-├── nome (VARCHAR)                     # 'Fácil', 'Médio', 'Difícil'
-├── descricao (TEXT)
-└── ordem (INTEGER)
+└── codigo (VARCHAR UNIQUE)            # 'FACIL', 'MEDIO', 'DIFICIL'
+```
+
+#### 🔑 Tabela: imagem (NOVA - Centralizada)
+```
+imagem
+├── uuid (TEXT PRIMARY KEY)
+├── nome_arquivo (VARCHAR UNIQUE)      # Nome único do arquivo
+├── caminho_relativo (VARCHAR)         # Caminho relativo no sistema
+├── hash_md5 (VARCHAR UNIQUE)          # Hash MD5 para detectar duplicatas
+├── tamanho_bytes (INTEGER)            # Tamanho do arquivo em bytes
+├── largura (INTEGER)                  # Largura em pixels
+├── altura (INTEGER)                   # Altura em pixels
+├── formato (VARCHAR)                  # 'PNG', 'JPG', 'SVG', etc.
+├── mime_type (VARCHAR)                # 'image/png', 'image/jpeg', etc.
+├── data_upload (DATETIME)
+└── ativo (BOOLEAN)
+
+# Vantagens:
+# - Evita duplicação de imagens (mesmo arquivo usado em múltiplas questões)
+# - Controle centralizado de imagens
+# - Facilita backup e migração
+# - Permite análise de uso (quantas questões usam cada imagem)
+# - Otimização de armazenamento via hash MD5
 ```
 
 #### 🔑 Tabela: lista
@@ -173,7 +175,12 @@ lista
 ├── tipo (VARCHAR)                     # 'PROVA', 'LISTA', 'SIMULADO'
 ├── cabecalho (TEXT)
 ├── instrucoes (TEXT)
-└── data_criacao (DATETIME)
+├── data_criacao (DATETIME)
+└── data_modificacao (DATETIME)
+
+# Relacionamento N:N com ordem customizada
+# As questões são gerenciadas via lista_questao
+# Busca por tags: JOIN lista_questao -> questao -> questao_tag -> tag
 ```
 
 ---
@@ -189,8 +196,13 @@ questao_tag
 lista_questao
 ├── uuid_lista (TEXT FK)
 ├── uuid_questao (TEXT FK)
-├── ordem_na_lista (INTEGER)           # NOVO: ordem customizada
+├── ordem_na_lista (INTEGER)           # Ordem customizada para cada lista
 └── data_adicao (DATETIME)
+
+# Este relacionamento permite:
+# - Manipular ordem das questões em cada lista
+# - Buscar listas por questões
+# - Buscar tags relacionadas: lista -> questoes -> questao_tag -> tags
 
 questao_versao
 ├── uuid_questao_original (TEXT FK)
@@ -252,6 +264,40 @@ questoes = buscar_questoes(
     dificuldade="Difícil",
     tipo="OBJETIVA"
 )
+
+# Busca de listas
+lista = buscar_lista_por_codigo("LST-2026-0001")
+listas = buscar_lista_por_titulo("Simulado ENEM")
+
+# Buscar questões de uma lista (com ordem)
+questoes_ordenadas = buscar_questoes_da_lista("LST-2026-0001")
+
+# Buscar tags relacionadas a uma lista (via suas questões)
+tags_da_lista = buscar_tags_da_lista("LST-2026-0001")
+
+# Manipular ordem de questões em uma lista
+reordenar_questoes_lista("LST-2026-0001", ["Q-2026-0003", "Q-2026-0001", "Q-2026-0002"])
+
+# Upload e gerenciamento de imagens
+imagem = upload_imagem("caminho/para/imagem.png")
+# Retorna: {"uuid": "...", "hash_md5": "...", "nome_arquivo": "..."}
+
+# Verificar se imagem já existe (por hash MD5)
+imagem_existente = buscar_imagem_por_hash("d41d8cd98f00b204e9800998ecf8427e")
+
+# Usar imagem em questão
+criar_questao(
+    titulo="Nova Questão",
+    enunciado="...",
+    uuid_imagem_enunciado=imagem.uuid,  # Reutiliza imagem existente
+    escala_imagem_enunciado=1.0
+)
+
+# Buscar questões que usam determinada imagem
+questoes_usando_imagem = buscar_questoes_por_imagem(imagem.uuid)
+
+# Remover imagem (apenas se não estiver em uso)
+remover_imagem(imagem.uuid)  # Valida se não há FK antes de deletar
 ```
 
 ---
@@ -298,6 +344,7 @@ class Questao(BaseModel):
     dificuldade = relationship("Dificuldade", back_populates="questoes")
     alternativas = relationship("Alternativa", back_populates="questao", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary="questao_tag", back_populates="questoes")
+    resposta = relationship("RespostaQuestao", back_populates="questao", uselist=False)
 
     # Métodos de busca por nome
     @classmethod
@@ -307,6 +354,126 @@ class Questao(BaseModel):
     @classmethod
     def buscar_por_titulo(cls, session, titulo: str):
         return session.query(cls).filter(cls.titulo.ilike(f"%{titulo}%"), cls.ativo == True).all()
+```
+
+### Exemplo: Model Lista
+```python
+class Lista(BaseModel):
+    __tablename__ = 'lista'
+
+    codigo = Column(String(20), unique=True, nullable=False, index=True)
+    titulo = Column(String(200), nullable=False, index=True)
+    tipo = Column(String(50), nullable=False)
+    cabecalho = Column(Text)
+    instrucoes = Column(Text)
+    data_modificacao = Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationship com questões (via tabela associativa)
+    questoes = relationship("Questao", secondary="lista_questao",
+                           back_populates="listas",
+                           order_by="ListaQuestao.ordem_na_lista")
+
+    @classmethod
+    def buscar_por_codigo(cls, session, codigo: str):
+        return session.query(cls).filter_by(codigo=codigo, ativo=True).first()
+
+    @classmethod
+    def buscar_tags_relacionadas(cls, session, codigo_lista: str):
+        """Busca todas as tags das questões desta lista"""
+        lista = cls.buscar_por_codigo(session, codigo_lista)
+        if not lista:
+            return []
+
+        tags = set()
+        for questao in lista.questoes:
+            tags.update(questao.tags)
+        return list(tags)
+
+    def reordenar_questoes(self, session, codigos_questoes_ordenados: list):
+        """Reordena questões da lista baseado em códigos"""
+        # Implementação via ListaQuestao
+        pass
+```
+
+### Exemplo: Model Imagem
+```python
+import hashlib
+from PIL import Image as PILImage
+
+class Imagem(BaseModel):
+    __tablename__ = 'imagem'
+
+    nome_arquivo = Column(String(255), unique=True, nullable=False)
+    caminho_relativo = Column(String(500), nullable=False)
+    hash_md5 = Column(String(32), unique=True, nullable=False, index=True)
+    tamanho_bytes = Column(Integer, nullable=False)
+    largura = Column(Integer, nullable=False)
+    altura = Column(Integer, nullable=False)
+    formato = Column(String(10), nullable=False)
+    mime_type = Column(String(50), nullable=False)
+    data_upload = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    @classmethod
+    def calcular_hash_md5(cls, caminho_arquivo: str) -> str:
+        """Calcula hash MD5 do arquivo para detectar duplicatas"""
+        hash_md5 = hashlib.md5()
+        with open(caminho_arquivo, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+    @classmethod
+    def buscar_por_hash(cls, session, hash_md5: str):
+        """Busca imagem pelo hash MD5 (detecta duplicatas)"""
+        return session.query(cls).filter_by(hash_md5=hash_md5, ativo=True).first()
+
+    @classmethod
+    def criar_de_arquivo(cls, session, caminho_arquivo: str, nome_arquivo: str = None):
+        """Cria registro de imagem a partir de arquivo físico"""
+        # Calcular hash
+        hash_md5 = cls.calcular_hash_md5(caminho_arquivo)
+
+        # Verificar se já existe
+        imagem_existente = cls.buscar_por_hash(session, hash_md5)
+        if imagem_existente:
+            return imagem_existente
+
+        # Obter metadados da imagem
+        with PILImage.open(caminho_arquivo) as img:
+            largura, altura = img.size
+            formato = img.format
+
+        # Criar novo registro
+        import os
+        tamanho_bytes = os.path.getsize(caminho_arquivo)
+        mime_type = f"image/{formato.lower()}"
+
+        nova_imagem = cls(
+            nome_arquivo=nome_arquivo or os.path.basename(caminho_arquivo),
+            caminho_relativo=caminho_arquivo,
+            hash_md5=hash_md5,
+            tamanho_bytes=tamanho_bytes,
+            largura=largura,
+            altura=altura,
+            formato=formato,
+            mime_type=mime_type
+        )
+
+        session.add(nova_imagem)
+        return nova_imagem
+
+    def esta_em_uso(self, session) -> bool:
+        """Verifica se a imagem está sendo usada em questões ou alternativas"""
+        from sqlalchemy import or_
+        questoes_count = session.query(Questao).filter(
+            Questao.uuid_imagem_enunciado == self.uuid
+        ).count()
+
+        alternativas_count = session.query(Alternativa).filter(
+            Alternativa.uuid_imagem == self.uuid
+        ).count()
+
+        return (questoes_count + alternativas_count) > 0
 ```
 
 ---
@@ -388,6 +555,7 @@ def migrar_v1_para_v2():
    - ✅ Dificuldade (3 registros)
    - ✅ Tags (hierarquia completa)
    - ✅ Criar tabelas novas (tipo_questao, fonte_questao, ano_referencia)
+   - ✅ Migrar imagens para tabela centralizada (com hash MD5 para deduplicação)
 
 3. **Migração de Questões**
    - ✅ Extrair anos únicos → tabela ano_referencia
@@ -397,9 +565,10 @@ def migrar_v1_para_v2():
    - ✅ Gerar códigos Q-AAAA-NNNN
 
 4. **Migração de Respostas**
-   - ✅ Alternativas → resposta_objetiva
-   - ✅ Gabarito discursivo → resposta_discursiva
-   - ✅ Resolução → resolucao_questao
+   - ✅ Unificar em resposta_questao
+   - ✅ Alternativas → uuid_alternativa_correta (objetivas)
+   - ✅ Gabarito discursivo → gabarito_discursivo (discursivas)
+   - ✅ Resolução → resolucao (ambas)
 
 5. **Migração de Relacionamentos**
    - ✅ questao_tag
@@ -415,32 +584,42 @@ def migrar_v1_para_v2():
 
 ## 🛠️ IMPLEMENTAÇÃO
 
-### Fase 1: ORM e Models (PRIORIDADE MÁXIMA)
-- [ ] Instalar SQLAlchemy
-- [ ] Criar Base Model com UUID
-- [ ] Criar todos os models ORM
-- [ ] Criar gerador de códigos
-- [ ] Criar script de criação do novo schema
+### Fase 1: ORM e Models (PRIORIDADE MÁXIMA) ✅ CONCLUÍDA
+- [x] Instalar SQLAlchemy
+- [x] Criar Base Model com UUID
+- [x] Criar todos os models ORM
+- [x] Criar gerador de códigos
+- [x] Criar script de criação do novo schema
 
-### Fase 2: Migração de Dados
-- [ ] Script de backup
-- [ ] Script de migração completo
+### Fase 2: Migração de Dados ✅ SCRIPTS PRONTOS
+- [x] Script de backup
+- [x] Script de migração completo
+- [ ] Executar migração em ambiente de teste
 - [ ] Testes de validação
 - [ ] Rollback plan
 
-### Fase 3: Repositories (Substituir Models)
-- [ ] QuestaoRepository com ORM
-- [ ] AlternativaRepository
-- [ ] TagRepository
-- [ ] ListaRepository
-- [ ] DificuldadeRepository
+### Fase 3: Repositories (Substituir Models) ✅ CONCLUÍDA
+- [x] QuestaoRepository com ORM
+- [x] RespostaQuestaoRepository (unificado)
+- [x] AlternativaRepository
+- [x] TagRepository
+- [x] ListaRepository (com métodos de ordenação e busca de tags)
+- [x] DificuldadeRepository
+- [x] ImagemRepository (com deduplicação por hash MD5)
+- [x] FonteQuestaoRepository
+- [x] AnoReferenciaRepository
+- [x] TipoQuestaoRepository
+- [x] BaseRepository (classe base com operações CRUD genéricas)
 
-### Fase 4: Services e Controllers
+### Fase 4: Services e Controllers 🚧 EM ANDAMENTO
+- [x] SessionManager para gerenciar sessões SQLAlchemy
+- [x] Adapters de compatibilidade (QuestaoAdapter)
+- [x] Documentação de migração (docs/MIGRACAO_ORM.md)
 - [ ] Atualizar serviços para usar repos ORM
 - [ ] Atualizar controllers
 - [ ] Busca por nome/código (nunca UUID)
 
-### Fase 5: Views
+### Fase 5: Views ⏳ PENDENTE
 - [ ] Atualizar forms (exibir códigos, não UUIDs)
 - [ ] Atualizar listas e tabelas
 - [ ] Busca autocomplete por nome
@@ -476,6 +655,15 @@ def migrar_v1_para_v2():
 - ✅ Relacionamentos explícitos
 - ✅ Type safety
 - ✅ Menos vulnerável a SQL Injection
+
+### Tabela Centralizada de Imagens
+- ✅ Elimina duplicação de arquivos (hash MD5)
+- ✅ Reduz drasticamente o tamanho do banco
+- ✅ Mesma imagem reutilizada em múltiplas questões/alternativas
+- ✅ Controle de uso (saber quais questões usam cada imagem)
+- ✅ Facilita backup (apenas imagens ativas)
+- ✅ Metadados centralizados (dimensões, formato, tamanho)
+- ✅ Migração e gerenciamento simplificados
 
 ---
 

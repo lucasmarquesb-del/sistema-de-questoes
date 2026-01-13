@@ -38,9 +38,7 @@ env/
 .DS_Store
 
 # Database
-database/questoes.db
-database/*.db
-database/*.db-journal
+
 
 # Logs
 logs/*.log

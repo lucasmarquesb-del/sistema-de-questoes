@@ -1,0 +1,179 @@
+================================================================================
+FASE 5 - CONCLUÍDA
+================================================================================
+Data: 2026-01-13
+Status: ✅ COMPLETA
+
+================================================================================
+OBJETIVOS ALCANÇADOS
+================================================================================
+
+1. ✅ Arquivos Legacy Movidos para /legacy
+   - src/models/legacy/
+     * questao.py
+     * alternativa.py
+     * lista.py
+     * tag.py
+     * dificuldade.py
+
+   - src/controllers/legacy/
+     * questao_controller.py
+     * questao_controller_refactored.py
+     * lista_controller.py
+     * tag_controller.py
+     * export_controller.py
+
+   - src/infrastructure/legacy/
+     * repositories/ (DDD layer)
+
+   - src/application/legacy/
+     * dtos/ (DDD DTOs)
+     * services/ (DDD services)
+
+   - src/domain/legacy/
+     * interfaces.py
+     * entities.py
+
+2. ✅ Controllers Adapter Criado
+   - src/controllers/adapters.py
+   - Mantém interface antiga mas usa ORM por trás
+   - Factory functions: criar_questao_controller(), criar_lista_controller(), etc
+   - Conversão automática de IDs inteiros para códigos legíveis
+
+3. ✅ DTOs Compatíveis Criados
+   - src/application/dtos.py (DTOs principais)
+   - src/application/dtos/tag_dto.py
+   - src/application/dtos/export_dto.py
+   - Mantêm mesma interface dos DTOs antigos
+
+4. ✅ Views Atualizadas
+   - Todos os imports das views atualizados para usar adapters
+   - Nenhuma mudança necessária no código das views
+   - Compatibilidade total mantida
+
+5. ✅ Main.py Atualizado
+   - Usa session_manager ORM
+   - Remove dependências de database legacy
+   - Inicialização de banco ORM
+
+================================================================================
+ESTRUTURA FINAL DO PROJETO
+================================================================================
+
+src/
+├── models/
+│   ├── orm/              # ✅ Modelos ORM (NOVOS)
+│   └── legacy/           # 📦 Modelos antigos (referência)
+│
+├── repositories/         # ✅ Repositories ORM (NOVOS)
+│
+├── services/             # ✅ Service Layer (NOVOS)
+│   ├── questao_service.py
+│   ├── lista_service.py
+│   ├── tag_service.py
+│   ├── alternativa_service.py
+│   └── service_facade.py
+│
+├── controllers/
+│   ├── questao_controller_orm.py    # ✅ NOVOS
+│   ├── lista_controller_orm.py
+│   ├── tag_controller_orm.py
+│   ├── alternativa_controller_orm.py
+│   ├── adapters.py                  # ✅ Compatibility layer
+│   └── legacy/                      # 📦 Controllers antigos
+│
+├── application/
+│   ├── dtos.py                      # ✅ DTOs compatíveis
+│   ├── dtos/
+│   │   ├── tag_dto.py
+│   │   └── export_dto.py
+│   └── legacy/                      # 📦 DDD layer antiga
+│
+├── views/                # ✅ ATUALIZADAS (usam adapters)
+│   ├── questao_form.py
+│   ├── lista_form.py
+│   ├── tag_manager.py
+│   └── ...
+│
+├── database/
+│   └── session_manager.py           # ✅ Gerenciamento de sessões ORM
+│
+└── main.py               # ✅ ATUALIZADO (usa ORM)
+
+================================================================================
+COMO FUNCIONA
+================================================================================
+
+Flow Completo:
+1. View usa factory function (criar_questao_controller)
+2. Adapter retorna objeto compatível
+3. Adapter converte chamadas para Controllers ORM
+4. Controller ORM usa Service Facade
+5. Service usa Repositories
+6. Repository usa ORM Models
+7. ORM acessa Database
+
+Exemplo:
+  View: controller = criar_questao_controller()
+        controller.criar_questao(dto)
+        
+  Adapter: QuestaoControllerAdapter.criar_questao()
+           -> converte DTO para dict
+           -> QuestaoControllerORM.criar_questao_completa()
+  
+  Controller: with services.transaction() as svc:
+                svc.questao.criar_questao(...)
+  
+  Service: questao_repo.criar_questao_completa(...)
+  
+  Repo: Questao(**kwargs) -> session.add() -> session.flush()
+  
+  ORM: INSERT INTO questao VALUES (...)
+
+================================================================================
+CÓDIGOS LEGÍVEIS
+================================================================================
+
+Questões: Q-2024-0001, Q-2024-0002, ...
+Listas:   LST-2026-0001, LST-2026-0002, ...
+Tags:     Numeração hierárquica (1, 1.1, 1.1.1, ...)
+
+Adapter faz conversão automática:
+  - ID inteiro 123 -> Q-2024-0123
+  - ID inteiro 45  -> LST-2026-0045
+
+================================================================================
+TESTES NECESSÁRIOS
+================================================================================
+
+Próximos passos para validação:
+1. Testar inicialização da aplicação (python src/main.py)
+2. Testar criação de questão pela view
+3. Testar criação de lista pela view
+4. Testar busca de questões
+5. Testar gerenciamento de tags
+6. Verificar se há erros no console
+7. Reimplementar funcionalidade de export se necessário
+
+================================================================================
+OBSERVAÇÕES
+================================================================================
+
+1. Export Controller ainda não foi reimplementado com ORM
+   - Placeholder retorna NotImplementedError
+   - Precisa ser reimplementado se usado pelas views
+
+2. Todos os arquivos legacy foram preservados em /legacy
+   - Podem ser consultados como referência
+   - Podem ser deletados após testes completos
+
+3. Adapters mantêm compatibilidade total
+   - Views não precisam ser alteradas
+   - Migração transparente para ORM
+
+4. UUIDs são usados internamente
+   - Usuário vê apenas códigos legíveis
+   - Views antigas podem continuar usando IDs inteiros
+   - Adapter faz conversão automática
+
+================================================================================

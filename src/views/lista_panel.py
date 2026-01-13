@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from src.controllers.lista_controller import criar_lista_controller
+from src.controllers.adapters import criar_lista_controller
 from src.views.lista_form import ListaForm
 from src.views.export_dialog import ExportDialog # Novo import
 from src.utils import ErrorHandler

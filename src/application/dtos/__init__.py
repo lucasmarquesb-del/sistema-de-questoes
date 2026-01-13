@@ -1,25 +1,27 @@
 """
-DTOs (Data Transfer Objects)
-DESCRIÇÃO: Objetos para transferência de dados entre camadas
-PRINCÍPIO: Desacoplamento - Views não precisam conhecer estrutura do domínio
-BENEFÍCIOS:
-    - API estável entre camadas
-    - Facilita versionamento
-    - Valida dados na entrada
-"""
+DTOs - Data Transfer Objects
 
-from .questao_dto import (
+Export de todos os DTOs para compatibilidade com views
+"""
+from .tag_dto import TagCreateDTO, TagUpdateDTO, TagResponseDTO
+from .export_dto import ExportOptionsDTO
+
+# Re-export from parent dtos.py
+import sys
+from pathlib import Path
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir))
+
+from dtos import (
     QuestaoCreateDTO,
     QuestaoUpdateDTO,
     QuestaoResponseDTO,
-    AlternativaDTO
-)
-from .lista_dto import (
+    AlternativaDTO,
     ListaCreateDTO,
     ListaUpdateDTO,
-    ListaResponseDTO
+    ListaResponseDTO,
+    FiltroQuestaoDTO
 )
-from .filtro_dto import FiltroQuestaoDTO
 
 __all__ = [
     'QuestaoCreateDTO',
@@ -29,5 +31,9 @@ __all__ = [
     'ListaCreateDTO',
     'ListaUpdateDTO',
     'ListaResponseDTO',
-    'FiltroQuestaoDTO'
+    'FiltroQuestaoDTO',
+    'TagCreateDTO',
+    'TagUpdateDTO',
+    'TagResponseDTO',
+    'ExportOptionsDTO',
 ]

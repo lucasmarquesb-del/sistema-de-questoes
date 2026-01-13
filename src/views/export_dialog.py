@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 
 from src.utils import ErrorHandler
-from src.controllers.export_controller import criar_export_controller
+from src.controllers.adapters import criar_export_controller
 from src.application.dtos.export_dto import ExportOptionsDTO
 
 logger = logging.getLogger(__name__)

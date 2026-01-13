@@ -16,8 +16,8 @@ from typing import List
 from src.views.widgets import (
     LatexEditor, ImagePicker, TagTreeWidget, DifficultySelector
 )
-from src.controllers.questao_controller_refactored import criar_questao_controller
-from src.controllers.tag_controller import criar_tag_controller
+from src.controllers.adapters import criar_questao_controller
+from src.controllers.adapters import criar_tag_controller
 from src.application.dtos import QuestaoCreateDTO, QuestaoUpdateDTO, AlternativaDTO
 from src.utils import ErrorHandler
 

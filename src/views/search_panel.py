@@ -10,8 +10,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 import logging
 
-from src.controllers.questao_controller_refactored import criar_questao_controller
-from src.controllers.tag_controller import criar_tag_controller
+from src.controllers.adapters import criar_questao_controller
+from src.controllers.adapters import criar_tag_controller
 from src.application.dtos import FiltroQuestaoDTO
 from src.utils import ErrorHandler
 from src.views.widgets import TagTreeWidget, QuestaoCard

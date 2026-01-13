@@ -19,7 +19,7 @@ import logging
 from typing import List
 
 from src.utils import ErrorHandler
-from src.controllers.tag_controller import criar_tag_controller
+from src.controllers.adapters import criar_tag_controller
 from src.application.dtos.tag_dto import TagCreateDTO, TagUpdateDTO, TagResponseDTO
 
 logger = logging.getLogger(__name__)
