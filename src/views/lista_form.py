@@ -6,7 +6,7 @@ DESCRIÇÃO: Formulário de criação/edição de listas de questões.
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QTextEdit, QListWidget, QListWidgetItem, QMessageBox,
-    QGroupBox, QInputDialog, QFormLayout
+    QGroupBox, QFormLayout
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 import logging
@@ -16,6 +16,7 @@ from src.utils import ErrorHandler
 from src.controllers.adapters import criar_lista_controller
 from src.controllers.adapters import criar_questao_controller
 from src.application.dtos import ListaCreateDTO, ListaUpdateDTO, QuestaoResponseDTO
+from src.views.questao_selector_dialog import QuestaoSelectorDialog
 
 logger = logging.getLogger(__name__)
 
@@ -107,66 +108,84 @@ class ListaForm(QDialog):
         try:
             lista_dto = self.controller.obter_lista_completa(id_lista)
             if not lista_dto:
-                ErrorHandler.show_error(self, "Erro", "Lista não encontrada.")
+                ErrorHandler.show_error(self, "Erro", "Lista nao encontrada.")
                 self.close()
                 return
-            
-            self.titulo_input.setText(lista_dto.titulo)
-            self.tipo_input.setText(lista_dto.tipo or "")
-            self.cabecalho_edit.setPlainText(lista_dto.cabecalho or "")
-            self.instrucoes_edit.setPlainText(lista_dto.instrucoes or "")
-            self.questoes_na_lista = lista_dto.questoes
+
+            self.titulo_input.setText(getattr(lista_dto, 'titulo', '') or '')
+            self.tipo_input.setText(getattr(lista_dto, 'tipo', '') or '')
+            self.cabecalho_edit.setPlainText(getattr(lista_dto, 'cabecalho', '') or '')
+            self.instrucoes_edit.setPlainText(getattr(lista_dto, 'instrucoes', '') or '')
+            self.questoes_na_lista = getattr(lista_dto, 'questoes', []) or []
             self._popular_lista_questoes()
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao carregar dados da lista.")
 
+    def _get_questao_id(self, q):
+        """Helper para obter ID da questao - prioriza codigo"""
+        return getattr(q, 'codigo', None) or getattr(q, 'uuid', None)
+
     def _popular_lista_questoes(self):
         self.questoes_list.clear()
         for q in self.questoes_na_lista:
-            texto = f"ID: {q.id} - {q.titulo or q.enunciado[:50]}..."
+            qid = self._get_questao_id(q)
+            titulo = getattr(q, 'titulo', None) or ''
+            enunciado = getattr(q, 'enunciado', '') or ''
+            display_text = titulo if titulo else enunciado[:50]
+            texto = f"{qid} - {display_text}..."
             item = QListWidgetItem(texto)
-            item.setData(Qt.ItemDataRole.UserRole, q.id)
+            item.setData(Qt.ItemDataRole.UserRole, qid)
             self.questoes_list.addItem(item)
 
     def adicionar_questao(self):
-        # TODO: Substituir por um diálogo de busca de questões (SearchPanel)
-        questao_id, ok = QInputDialog.getInt(self, "Adicionar Questão", "Digite o ID da questão:")
-        if not ok or not questao_id:
-            return
-            
-        try:
-            if any(q.id == questao_id for q in self.questoes_na_lista):
-                ErrorHandler.show_info(self, "Informação", "Esta questão já está na lista.")
-                return
+        """Abre dialogo para selecionar questoes"""
+        dialog = QuestaoSelectorDialog(
+            questoes_ja_na_lista=self.questoes_na_lista,
+            parent=self
+        )
+        dialog.questoesAdicionadas.connect(self._on_questoes_adicionadas)
+        dialog.exec()
 
-            questao_dto = self.questao_controller.obter_questao_completa(questao_id)
-            if not questao_dto:
-                ErrorHandler.show_warning(self, "Não encontrada", f"Questão com ID {questao_id} não encontrada.")
-                return
-            
-            self.questoes_na_lista.append(questao_dto)
+    def _on_questoes_adicionadas(self, questoes_list):
+        """Callback quando questoes sao selecionadas no dialogo"""
+        try:
+            added_count = 0
+            for questao_dto in questoes_list:
+                # Verificar se ja esta na lista
+                qid = self._get_questao_id(questao_dto)
+                ids_existentes = [self._get_questao_id(q) for q in self.questoes_na_lista]
+
+                if qid in ids_existentes:
+                    continue  # Ja esta na lista, ignorar
+
+                self.questoes_na_lista.append(questao_dto)
+                added_count += 1
+
+                if self.is_editing:
+                    self.controller.adicionar_questao(self.lista_id, qid)
+
             self._popular_lista_questoes()
-            
-            if self.is_editing:
-                self.controller.adicionar_questao_lista(self.lista_id, questao_id)
+
+            if added_count > 0:
+                logger.info(f"{added_count} questoes adicionadas a lista")
         except Exception as e:
-            ErrorHandler.handle_exception(self, e, "Erro ao adicionar questão.")
+            ErrorHandler.handle_exception(self, e, "Erro ao adicionar questoes.")
 
     def remover_questao(self):
         item_selecionado = self.questoes_list.currentItem()
         if not item_selecionado:
             return
-            
+
         id_questao = item_selecionado.data(Qt.ItemDataRole.UserRole)
-        
-        self.questoes_na_lista = [q for q in self.questoes_na_lista if q.id != id_questao]
+
+        self.questoes_na_lista = [q for q in self.questoes_na_lista if self._get_questao_id(q) != id_questao]
         self._popular_lista_questoes()
-        
+
         if self.is_editing:
             try:
-                self.controller.remover_questao_lista(self.lista_id, id_questao)
+                self.controller.remover_questao(self.lista_id, id_questao)
             except Exception as e:
-                ErrorHandler.handle_exception(self, e, "Erro ao remover questão da lista no banco de dados.")
+                ErrorHandler.handle_exception(self, e, "Erro ao remover questao da lista no banco de dados.")
 
     def salvar_lista(self):
         try:
@@ -191,14 +210,17 @@ class ListaForm(QDialog):
                     cabecalho=self.cabecalho_edit.toPlainText().strip() or None,
                     instrucoes=self.instrucoes_edit.toPlainText().strip() or None
                 )
-                id_nova_lista = self.controller.criar_lista(dto)
-                if not id_nova_lista:
-                    ErrorHandler.show_error(self, "Erro", "Não foi possível criar a lista.")
+                resultado = self.controller.criar_lista(dto)
+                if not resultado:
+                    ErrorHandler.show_error(self, "Erro", "Nao foi possivel criar a lista.")
                     return
-                
-                # Adicionar questões à lista recém-criada
+
+                # Extrair codigo da lista criada
+                codigo_nova_lista = resultado.get('codigo') if isinstance(resultado, dict) else resultado
+
+                # Adicionar questoes a lista recem-criada
                 for q in self.questoes_na_lista:
-                    self.controller.adicionar_questao_lista(id_nova_lista, q.id)
+                    self.controller.adicionar_questao(codigo_nova_lista, self._get_questao_id(q))
             
             ErrorHandler.show_success(self, "Sucesso", f"Lista '{titulo}' salva com sucesso!")
             self.listaSaved.emit()

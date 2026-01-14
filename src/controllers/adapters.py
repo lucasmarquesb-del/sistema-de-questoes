@@ -8,12 +8,27 @@ novos controllers ORM por trás.
 Isso permite que as views continuem funcionando sem grandes modificações enquanto
 usam a nova arquitetura ORM.
 """
+from types import SimpleNamespace
 from src.controllers import (
     QuestaoControllerORM,
     ListaControllerORM,
     TagControllerORM,
     AlternativaControllerORM
 )
+
+
+def _dict_to_obj(data):
+    """Converte dict para objeto com atributos (recursivo)"""
+    if data is None:
+        return None
+    if isinstance(data, dict):
+        obj = SimpleNamespace()
+        for key, value in data.items():
+            setattr(obj, key, _dict_to_obj(value))
+        return obj
+    if isinstance(data, list):
+        return [_dict_to_obj(item) for item in data]
+    return data
 
 
 class QuestaoControllerAdapter:
@@ -65,6 +80,11 @@ class QuestaoControllerAdapter:
         else:
             codigo = questao_id
         return QuestaoControllerORM.buscar_questao(codigo)
+
+    def obter_questao_completa(self, questao_id):
+        """Obtém questão com todos os dados"""
+        result = self.buscar_por_id(questao_id)
+        return _dict_to_obj(result)
 
     def buscar_questoes(self, filtros=None):
         """Busca questões com filtros"""
@@ -128,6 +148,11 @@ class ListaControllerAdapter:
             codigo = lista_id
         return ListaControllerORM.buscar_lista(codigo)
 
+    def obter_lista_completa(self, lista_id):
+        """Obtém lista com todos os dados incluindo questões"""
+        result = self.buscar_por_id(lista_id)
+        return _dict_to_obj(result)
+
     def listar_todas(self):
         """Lista todas as listas"""
         return ListaControllerORM.listar_listas()
@@ -163,6 +188,30 @@ class ListaControllerAdapter:
             codigo_questao = questao_id
 
         return ListaControllerORM.remover_questao(codigo_lista, codigo_questao)
+
+    def atualizar_lista(self, dto):
+        """Atualiza lista a partir de DTO"""
+        lista_id = getattr(dto, 'id_lista', None) or getattr(dto, 'codigo', None)
+        if isinstance(lista_id, int):
+            codigo = f"LST-2026-{lista_id:04d}"
+        else:
+            codigo = lista_id
+
+        return ListaControllerORM.atualizar_lista(
+            codigo=codigo,
+            titulo=getattr(dto, 'titulo', None),
+            tipo=getattr(dto, 'tipo', None),
+            cabecalho=getattr(dto, 'cabecalho', None),
+            instrucoes=getattr(dto, 'instrucoes', None)
+        )
+
+    def deletar_lista(self, lista_id):
+        """Deleta lista (soft delete)"""
+        if isinstance(lista_id, int):
+            codigo = f"LST-2026-{lista_id:04d}"
+        else:
+            codigo = lista_id
+        return ListaControllerORM.deletar_lista(codigo)
 
 
 class TagControllerAdapter:

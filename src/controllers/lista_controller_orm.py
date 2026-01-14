@@ -156,6 +156,40 @@ class ListaControllerORM:
             return False
 
     @staticmethod
+    def atualizar_lista(
+        codigo: str,
+        titulo: str = None,
+        tipo: str = None,
+        cabecalho: str = None,
+        instrucoes: str = None
+    ):
+        """
+        Atualiza uma lista
+
+        Args:
+            codigo: Codigo da lista (LST-2026-0001)
+            titulo: Novo titulo
+            tipo: Novo tipo
+            cabecalho: Novo cabecalho
+            instrucoes: Novas instrucoes
+
+        Returns:
+            Dict com dados atualizados ou None
+        """
+        try:
+            with services.transaction() as svc:
+                return svc.lista.atualizar_lista(
+                    codigo=codigo,
+                    titulo=titulo,
+                    tipo=tipo,
+                    cabecalho=cabecalho,
+                    instrucoes=instrucoes
+                )
+        except Exception as e:
+            print(f"Erro ao atualizar lista: {e}")
+            return None
+
+    @staticmethod
     def deletar_lista(codigo: str) -> bool:
         """
         Desativa uma lista (soft delete)

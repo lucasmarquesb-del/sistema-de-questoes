@@ -136,6 +136,50 @@ class ListaService:
         """Reordena questões da lista"""
         return self.lista_repo.reordenar_questoes(codigo_lista, codigos_ordenados)
 
+    def atualizar_lista(
+        self,
+        codigo: str,
+        titulo: Optional[str] = None,
+        tipo: Optional[str] = None,
+        cabecalho: Optional[str] = None,
+        instrucoes: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Atualiza uma lista
+
+        Args:
+            codigo: Codigo da lista
+            titulo: Novo titulo
+            tipo: Novo tipo
+            cabecalho: Novo cabecalho
+            instrucoes: Novas instrucoes
+
+        Returns:
+            Dict com dados atualizados ou None
+        """
+        lista = self.lista_repo.buscar_por_codigo(codigo)
+        if not lista:
+            return None
+
+        if titulo is not None:
+            lista.titulo = titulo
+        if tipo is not None:
+            lista.tipo = tipo
+        if cabecalho is not None:
+            lista.cabecalho = cabecalho
+        if instrucoes is not None:
+            lista.instrucoes = instrucoes
+
+        self.session.flush()
+
+        return {
+            'codigo': lista.codigo,
+            'titulo': lista.titulo,
+            'tipo': lista.tipo,
+            'cabecalho': lista.cabecalho,
+            'instrucoes': lista.instrucoes
+        }
+
     def deletar_lista(self, codigo: str) -> bool:
         """Desativa lista (soft delete)"""
         lista = self.lista_repo.buscar_por_codigo(codigo)
