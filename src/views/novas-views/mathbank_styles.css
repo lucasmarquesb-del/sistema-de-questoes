@@ -1,0 +1,381 @@
+/* Global Styles */
+* {
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+QMainWindow {
+    background-color: #f6f6f8;
+}
+
+/* Header */
+#header {
+    background-color: white;
+    border-bottom: 1px solid #f0f2f4;
+}
+
+#logo {
+    background-color: #1258e2;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+#title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #111318;
+}
+
+#nav_active {
+    color: #1258e2;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 2px solid #1258e2;
+    background: transparent;
+    padding: 4px 0px;
+}
+
+#nav_link {
+    color: #616f89;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    padding: 4px 0px;
+}
+
+#nav_link:hover {
+    color: #1258e2;
+}
+
+#create_button {
+    background-color: #1258e2;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    min-height: 40px;
+}
+
+#create_button:hover {
+    background-color: #0d47b8;
+}
+
+#avatar {
+    border-radius: 20px;
+    border: 1px solid #e0e0e0;
+    background-color: #e0e0e0;
+}
+
+/* Sidebar */
+#sidebar {
+    background-color: white;
+    border-right: 1px solid #f0f2f4;
+}
+
+#sidebar_title {
+    font-size: 12px;
+    font-weight: bold;
+    color: #111318;
+    letter-spacing: 1px;
+}
+
+#sidebar_subtitle {
+    font-size: 10px;
+    color: #616f89;
+}
+
+#sidebar_icon {
+    color: #616f89;
+    font-size: 18px;
+}
+
+#tree_item_active {
+    background-color: rgba(18, 88, 226, 0.1);
+    border-radius: 8px;
+}
+
+#tree_item_text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1258e2;
+}
+
+#tree_item {
+    background-color: transparent;
+    border-radius: 8px;
+}
+
+#tree_item:hover {
+    background-color: #f8f9fa;
+}
+
+#tree_item_text_inactive {
+    font-size: 14px;
+    font-weight: 500;
+    color: #111318;
+}
+
+#tree_subitem_active {
+    background-color: rgba(18, 88, 226, 0.05);
+    border-radius: 8px;
+    border-left: 2px solid rgba(18, 88, 226, 0.2);
+}
+
+#tree_subitem_text {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1258e2;
+}
+
+#tree_subitem {
+    background-color: transparent;
+    border-radius: 8px;
+}
+
+#tree_subitem:hover {
+    background-color: #f8f9fa;
+}
+
+#tree_subitem_text_inactive {
+    font-size: 12px;
+    font-weight: 500;
+    color: #616f89;
+}
+
+#export_button {
+    background-color: white;
+    color: #1258e2;
+    border: 2px solid #1258e2;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 10px;
+}
+
+#export_button:hover {
+    background-color: rgba(18, 88, 226, 0.05);
+}
+
+/* Main Content */
+#main_scroll {
+    background-color: #f6f6f8;
+    border: none;
+}
+
+#main_content {
+    background-color: #f6f6f8;
+}
+
+#page_title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #111318;
+}
+
+#results_count {
+    font-size: 14px;
+    color: #616f89;
+}
+
+/* Filters */
+#filters {
+    background-color: white;
+    border: 1px solid #f0f2f4;
+    border-radius: 12px;
+}
+
+#search_bar {
+    background-color: #f0f2f4;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 10px 10px 40px;
+    font-size: 14px;
+    color: #111318;
+}
+
+#search_bar::placeholder {
+    color: #616f89;
+}
+
+#filter_button {
+    background-color: #f0f2f4;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #111318;
+    min-height: 40px;
+}
+
+#filter_button:hover {
+    background-color: #e0e0e0;
+}
+
+#filter_button_active {
+    background-color: rgba(18, 88, 226, 0.1);
+    border: 1px solid rgba(18, 88, 226, 0.2);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1258e2;
+    min-height: 40px;
+}
+
+#filter_button_dark {
+    background-color: #111318;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    min-height: 40px;
+}
+
+#filter_button_dark:hover {
+    background-color: #000000;
+}
+
+/* Question Card */
+#question_card {
+    background-color: white;
+    border: 1px solid #f0f2f4;
+    border-radius: 12px;
+}
+
+#question_card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+#card_id {
+    color: #1258e2;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+#card_type, #card_menu {
+    color: #616f89;
+    font-size: 16px;
+}
+
+#card_title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111318;
+}
+
+#formula_box {
+    background-color: #f8f9fa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+#formula_text {
+    font-family: "Times New Roman", serif;
+    font-style: italic;
+    font-size: 16px;
+    color: #111318;
+}
+
+/* Tags */
+#tag_blue {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#tag_green {
+    background-color: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#tag_red {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#tag_yellow {
+    background-color: rgba(234, 179, 8, 0.1);
+    color: #ca8a04;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#tag_purple {
+    background-color: rgba(168, 85, 247, 0.1);
+    color: #9333ea;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#tag_orange {
+    background-color: rgba(249, 115, 22, 0.1);
+    color: #ea580c;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#tag_gray {
+    background-color: #f1f5f9;
+    color: #616f89;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Scrollbar */
+QScrollArea {
+    border: none;
+}
+
+QScrollBar:vertical {
+    border: none;
+    background: transparent;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #dbdfe6;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #c0c4cc;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
