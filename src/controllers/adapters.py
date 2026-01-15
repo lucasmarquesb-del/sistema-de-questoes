@@ -269,6 +269,10 @@ class TagControllerAdapter:
         """Lista tags de série/nível de escolaridade"""
         return TagControllerORM.listar_series()
 
+    def listar_vestibulares(self):
+        """Lista tags de vestibular/banca"""
+        return TagControllerORM.listar_vestibulares()
+
     def listar_todas(self):
         """Lista todas as tags"""
         return TagControllerORM.listar_todas()
@@ -284,6 +288,95 @@ class TagControllerAdapter:
         if tags and len(tags) > tag_id - 1:
             return tags[tag_id - 1]
         return None
+
+    def criar_tag(self, dto, tipo: str = 'CONTEUDO'):
+        """
+        Cria uma nova tag a partir de DTO
+
+        Args:
+            dto: TagCreateDTO com nome e id_tag_pai (opcional)
+            tipo: Tipo da tag raiz - 'CONTEUDO', 'VESTIBULAR' ou 'SERIE'
+
+        Returns:
+            Dict com dados da tag criada
+        """
+        # dto.id_tag_pai pode ser um UUID string ou None
+        uuid_pai = dto.id_tag_pai if isinstance(dto.id_tag_pai, str) else None
+        return TagControllerORM.criar_tag(dto.nome, uuid_pai, tipo)
+
+    def atualizar_tag(self, dto):
+        """
+        Atualiza uma tag a partir de DTO
+
+        Args:
+            dto: TagUpdateDTO com id_tag (UUID) e nome
+
+        Returns:
+            Dict com dados atualizados ou None
+        """
+        # dto.id_tag deve ser o UUID da tag
+        uuid = dto.id_tag if isinstance(dto.id_tag, str) else None
+        if not uuid:
+            return None
+        return TagControllerORM.atualizar_tag(uuid, dto.nome)
+
+    def deletar_tag(self, tag_uuid):
+        """
+        Deleta uma tag
+
+        Args:
+            tag_uuid: UUID da tag (string)
+
+        Returns:
+            True se deletada
+        """
+        if not isinstance(tag_uuid, str):
+            return False
+        return TagControllerORM.deletar_tag(tag_uuid)
+
+    def pode_criar_subtag(self, uuid_tag_pai):
+        """
+        Verifica se é permitido criar sub-tags para uma tag
+
+        Args:
+            uuid_tag_pai: UUID da tag pai
+
+        Returns:
+            True se permitido
+        """
+        return TagControllerORM.pode_criar_subtag(uuid_tag_pai)
+
+    def inativar_tag(self, tag_uuid):
+        """
+        Inativa uma tag (soft delete)
+
+        Args:
+            tag_uuid: UUID da tag (string)
+
+        Returns:
+            True se inativada
+        """
+        if not isinstance(tag_uuid, str):
+            return False
+        return TagControllerORM.inativar_tag(tag_uuid)
+
+    def reativar_tag(self, tag_uuid):
+        """
+        Reativa uma tag inativa
+
+        Args:
+            tag_uuid: UUID da tag (string)
+
+        Returns:
+            True se reativada
+        """
+        if not isinstance(tag_uuid, str):
+            return False
+        return TagControllerORM.reativar_tag(tag_uuid)
+
+    def obter_arvore_tags_inativas(self):
+        """Retorna árvore hierárquica de tags inativas"""
+        return TagControllerORM.obter_arvore_tags_inativas()
 
 
 # Factory functions para manter compatibilidade com código existente
@@ -310,8 +403,8 @@ def criar_export_controller():
 
 def listar_fontes_questao():
     """Lista todas as fontes de questão (bancas/vestibulares) ativas"""
-    from database import session_manager
-    from models.orm import FonteQuestao
+    from src.database import session_manager
+    from src.models.orm import FonteQuestao
 
     session = session_manager.create_session()
     try:

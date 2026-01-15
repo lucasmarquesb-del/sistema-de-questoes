@@ -2,7 +2,7 @@
 Service Facade - Ponto único de acesso aos services com gerenciamento de sessão
 """
 from contextlib import contextmanager
-from database import session_manager
+from src.database import session_manager
 from .questao_service import QuestaoService
 from .lista_service import ListaService
 from .tag_service import TagService

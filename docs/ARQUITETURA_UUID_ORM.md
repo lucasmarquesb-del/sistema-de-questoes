@@ -1,4 +1,4 @@
-# 🏗️ NOVA ARQUITETURA - UUID + ORM + NORMALIZAÇÃO
+claud# 🏗️ NOVA ARQUITETURA - UUID + ORM + NORMALIZAÇÃO
 
 **Data:** 2026-01-13
 **Versão:** 2.0.0

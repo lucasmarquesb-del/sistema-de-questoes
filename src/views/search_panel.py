@@ -12,7 +12,6 @@ import logging
 
 from src.controllers.adapters import criar_questao_controller
 from src.controllers.adapters import criar_tag_controller
-from src.controllers.adapters import listar_fontes_questao
 from src.application.dtos import FiltroQuestaoDTO
 from src.utils import ErrorHandler
 from src.views.widgets import TagTreeWidget, QuestaoCard
@@ -161,13 +160,13 @@ class SearchPanel(QWidget):
             ErrorHandler.handle_exception(self, e, "Erro ao carregar tags para filtro.")
 
     def load_fontes(self):
-        """Carrega as fontes/bancas para o dropdown"""
+        """Carrega as tags de vestibular/banca para o dropdown"""
         try:
-            fontes = listar_fontes_questao()
-            for fonte in fontes:
-                self.fonte_combo.addItem(fonte['sigla'], fonte['sigla'])
+            vestibulares = self.tag_controller.listar_vestibulares()
+            for vest in vestibulares:
+                self.fonte_combo.addItem(vest['nome'], vest['uuid'])
         except Exception as e:
-            ErrorHandler.handle_exception(self, e, "Erro ao carregar fontes.")
+            ErrorHandler.handle_exception(self, e, "Erro ao carregar fontes/vestibulares.")
 
     def load_series(self):
         """Carrega as séries/níveis de escolaridade para o dropdown"""
@@ -253,7 +252,6 @@ class SearchPanel(QWidget):
     def _get_filtros(self) -> FiltroQuestaoDTO:
         titulo = self.search_input.text().strip() or None
         tipo = self.tipo_combo.currentText() if "Todos" not in self.tipo_combo.currentText() else None
-        fonte = self.fonte_combo.currentData()  # Retorna None se "Todas as Fontes"
         ano_inicio = self.ano_de_spin.value()
         ano_fim = self.ano_ate_spin.value()
 
@@ -261,6 +259,11 @@ class SearchPanel(QWidget):
 
         # Coletar tags selecionadas (conteúdos)
         tags = self.tag_tree_widget.get_selected_tag_ids()
+
+        # Adicionar vestibular/fonte selecionada às tags (se houver)
+        fonte_uuid = self.fonte_combo.currentData()
+        if fonte_uuid:
+            tags.append(fonte_uuid)
 
         # Adicionar série selecionada às tags (se houver)
         serie_uuid = self.serie_combo.currentData()
@@ -276,7 +279,7 @@ class SearchPanel(QWidget):
             tipo=tipo,
             ano_inicio=ano_inicio,
             ano_fim=ano_fim,
-            fonte=fonte,
+            fonte=None,  # Não usar mais fonte_questao, usar tags
             dificuldade=dificuldade_texto,
             tags=tags if tags else None,
             ativa=ativa

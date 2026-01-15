@@ -152,3 +152,161 @@ class TagControllerORM:
         except Exception as e:
             print(f"Erro ao listar séries: {e}")
             return []
+
+    @staticmethod
+    def listar_vestibulares() -> List[Dict[str, Any]]:
+        """
+        Lista tags de vestibular/banca
+
+        Returns:
+            Lista de dicts com dados dos vestibulares
+        """
+        try:
+            return services.tag.listar_vestibulares()
+        except Exception as e:
+            print(f"Erro ao listar vestibulares: {e}")
+            return []
+
+    @staticmethod
+    def criar_tag(nome: str, uuid_tag_pai: str = None, tipo: str = 'CONTEUDO') -> Optional[Dict[str, Any]]:
+        """
+        Cria uma nova tag
+
+        Args:
+            nome: Nome da tag
+            uuid_tag_pai: UUID da tag pai (opcional)
+            tipo: Tipo da tag raiz - 'CONTEUDO', 'VESTIBULAR' ou 'SERIE'
+
+        Returns:
+            Dict com dados da tag criada
+        """
+        try:
+            result = services.tag.criar_tag(nome, uuid_tag_pai, tipo)
+            services.commit()
+            return result
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            services.rollback()
+            print(f"Erro ao criar tag: {e}")
+            raise e
+
+    @staticmethod
+    def atualizar_tag(uuid: str, nome: str) -> Optional[Dict[str, Any]]:
+        """
+        Atualiza o nome de uma tag
+
+        Args:
+            uuid: UUID da tag
+            nome: Novo nome
+
+        Returns:
+            Dict com dados atualizados
+        """
+        try:
+            result = services.tag.atualizar_tag(uuid, nome)
+            services.commit()
+            return result
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            services.rollback()
+            print(f"Erro ao atualizar tag: {e}")
+            raise e
+
+    @staticmethod
+    def deletar_tag(uuid: str) -> bool:
+        """
+        Deleta uma tag (soft delete)
+
+        Args:
+            uuid: UUID da tag
+
+        Returns:
+            True se deletada
+        """
+        try:
+            result = services.tag.deletar_tag(uuid)
+            services.commit()
+            return result
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            services.rollback()
+            print(f"Erro ao deletar tag: {e}")
+            raise e
+
+    @staticmethod
+    def pode_criar_subtag(uuid_tag_pai: str) -> bool:
+        """
+        Verifica se é permitido criar sub-tags para uma tag
+
+        Args:
+            uuid_tag_pai: UUID da tag pai
+
+        Returns:
+            True se permitido
+        """
+        try:
+            return services.tag.pode_criar_subtag(uuid_tag_pai)
+        except Exception as e:
+            print(f"Erro ao verificar permissão de sub-tag: {e}")
+            return False
+
+    @staticmethod
+    def inativar_tag(uuid: str) -> bool:
+        """
+        Inativa uma tag (soft delete)
+
+        Args:
+            uuid: UUID da tag
+
+        Returns:
+            True se inativada
+        """
+        try:
+            result = services.tag.inativar_tag(uuid)
+            services.commit()
+            return result
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            services.rollback()
+            print(f"Erro ao inativar tag: {e}")
+            raise e
+
+    @staticmethod
+    def reativar_tag(uuid: str) -> bool:
+        """
+        Reativa uma tag inativa
+
+        Args:
+            uuid: UUID da tag
+
+        Returns:
+            True se reativada
+        """
+        try:
+            result = services.tag.reativar_tag(uuid)
+            services.commit()
+            return result
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            services.rollback()
+            print(f"Erro ao reativar tag: {e}")
+            raise e
+
+    @staticmethod
+    def obter_arvore_tags_inativas() -> List[Any]:
+        """
+        Obtém árvore hierárquica de tags inativas
+
+        Returns:
+            Lista de TagResponseDTO com hierarquia de tags inativas
+        """
+        try:
+            return services.tag.obter_arvore_tags_inativas()
+        except Exception as e:
+            print(f"Erro ao obter árvore de tags inativas: {e}")
+            return []

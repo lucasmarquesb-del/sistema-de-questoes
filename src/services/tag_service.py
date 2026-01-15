@@ -203,3 +203,262 @@ class TagService:
             }
             for tag in series
         ]
+
+    def listar_vestibulares(self) -> List[Dict[str, Any]]:
+        """
+        Lista tags de vestibular/banca (numeração começa com V)
+
+        Returns:
+            Lista de dicts com dados das tags de vestibular
+        """
+        raizes = self.tag_repo.listar_raizes()
+
+        # Filtrar apenas tags de vestibular (numeração começa com V)
+        vestibulares = [
+            tag for tag in raizes
+            if tag.numeracao and tag.numeracao.startswith('V')
+        ]
+
+        return [
+            {
+                'id': hash(tag.uuid) % 2147483647,
+                'uuid': tag.uuid,
+                'nome': tag.nome,
+                'numeracao': tag.numeracao
+            }
+            for tag in vestibulares
+        ]
+
+    def criar_tag(self, nome: str, uuid_tag_pai: Optional[str] = None, tipo: str = 'CONTEUDO') -> Optional[Dict[str, Any]]:
+        """
+        Cria uma nova tag
+
+        Args:
+            nome: Nome da tag (será convertido para maiúsculas)
+            uuid_tag_pai: UUID da tag pai (opcional, None para tag raiz)
+            tipo: Tipo da tag raiz - 'CONTEUDO', 'VESTIBULAR' ou 'SERIE' (ignorado se tiver pai)
+
+        Returns:
+            Dict com dados da tag criada ou None se erro
+        """
+        # Converter nome para maiúsculas
+        nome = nome.strip().upper()
+
+        if not nome:
+            raise ValueError("O nome da tag não pode estar vazio")
+
+        # Verificar se já existe tag com mesmo nome (case insensitive já que convertemos para upper)
+        existente = self.tag_repo.buscar_por_nome(nome)
+        if existente:
+            raise ValueError(f"Já existe uma tag com o nome '{nome}'")
+
+        # Determinar nível e numeração
+        if uuid_tag_pai:
+            tag_pai = self.tag_repo.buscar_por_uuid(uuid_tag_pai)
+            if not tag_pai:
+                raise ValueError("Tag pai não encontrada")
+
+            # Não permitir sub-tags em tags de vestibular (V) ou série (N)
+            if tag_pai.numeracao and (tag_pai.numeracao.startswith('V') or tag_pai.numeracao.startswith('N')):
+                raise ValueError("Não é permitido criar sub-tags para tags de vestibular ou série")
+
+            nivel = tag_pai.nivel + 1
+            # Buscar maior numeração existente (incluindo inativas)
+            maior_num = self.tag_repo.obter_maior_numeracao_filha(uuid_tag_pai)
+            proxima_ordem = maior_num + 1
+            numeracao = f"{tag_pai.numeracao}.{proxima_ordem}"
+            ordem = proxima_ordem
+        else:
+            # Tag raiz - determinar prefixo baseado no tipo
+            nivel = 1
+
+            if tipo == 'VESTIBULAR':
+                # Tags de vestibular começam com V
+                maior_num = self.tag_repo.obter_maior_numeracao_raiz('V')
+                proxima_ordem = maior_num + 1
+                numeracao = f"V{proxima_ordem}"
+                ordem = 100 + proxima_ordem  # Ordem alta para ficar após conteúdos
+            elif tipo == 'SERIE':
+                # Tags de série começam com N
+                maior_num = self.tag_repo.obter_maior_numeracao_raiz('N')
+                proxima_ordem = maior_num + 1
+                numeracao = f"N{proxima_ordem}"
+                ordem = 200 + proxima_ordem  # Ordem mais alta ainda
+            else:
+                # Tags de conteúdo (padrão) começam com número
+                maior_num = self.tag_repo.obter_maior_numeracao_raiz('')
+                proxima_ordem = maior_num + 1
+                numeracao = str(proxima_ordem)
+                ordem = proxima_ordem
+
+        # Criar tag
+        tag = self.tag_repo.criar(
+            nome=nome,
+            numeracao=numeracao,
+            nivel=nivel,
+            uuid_tag_pai=uuid_tag_pai,
+            ordem=ordem
+        )
+
+        self.session.flush()
+
+        return {
+            'id': hash(tag.uuid) % 2147483647,
+            'uuid': tag.uuid,
+            'nome': tag.nome,
+            'numeracao': tag.numeracao,
+            'nivel': tag.nivel
+        }
+
+    def atualizar_tag(self, uuid: str, nome: str) -> Optional[Dict[str, Any]]:
+        """
+        Atualiza o nome de uma tag
+
+        Args:
+            uuid: UUID da tag
+            nome: Novo nome
+
+        Returns:
+            Dict com dados atualizados ou None
+        """
+        # Verificar se nome já existe em outra tag
+        existente = self.tag_repo.buscar_por_nome(nome)
+        if existente and existente.uuid != uuid:
+            raise ValueError(f"Já existe uma tag com o nome '{nome}'")
+
+        tag = self.tag_repo.atualizar(uuid, nome=nome)
+        if not tag:
+            return None
+
+        self.session.flush()
+
+        return {
+            'id': hash(tag.uuid) % 2147483647,
+            'uuid': tag.uuid,
+            'nome': tag.nome,
+            'numeracao': tag.numeracao,
+            'nivel': tag.nivel
+        }
+
+    def deletar_tag(self, uuid: str) -> bool:
+        """
+        Deleta uma tag (soft delete)
+
+        Args:
+            uuid: UUID da tag
+
+        Returns:
+            True se deletada, False se não encontrada
+        """
+        tag = self.tag_repo.buscar_por_uuid(uuid)
+        if not tag:
+            return False
+
+        # Verificar se tem filhas ativas
+        filhas_ativas = [t for t in tag.tags_filhas if t.ativo]
+        if filhas_ativas:
+            raise ValueError("Não é possível deletar uma tag que possui sub-tags. Delete as sub-tags primeiro.")
+
+        # Verificar se está associada a questões
+        if tag.questoes:
+            raise ValueError("Não é possível deletar uma tag que está associada a questões.")
+
+        result = self.tag_repo.desativar(uuid)
+        self.session.flush()
+        return result
+
+    def pode_criar_subtag(self, uuid_tag_pai: str) -> bool:
+        """
+        Verifica se é permitido criar sub-tags para uma tag
+
+        Args:
+            uuid_tag_pai: UUID da tag pai
+
+        Returns:
+            True se permitido, False caso contrário
+        """
+        tag_pai = self.tag_repo.buscar_por_uuid(uuid_tag_pai)
+        if not tag_pai:
+            return False
+
+        # Não permitir sub-tags em tags de vestibular (V) ou série (N)
+        if tag_pai.numeracao and (tag_pai.numeracao.startswith('V') or tag_pai.numeracao.startswith('N')):
+            return False
+
+        return True
+
+    def inativar_tag(self, uuid: str) -> bool:
+        """
+        Inativa uma tag (soft delete)
+
+        Args:
+            uuid: UUID da tag
+
+        Returns:
+            True se inativada, False se não encontrada
+        """
+        tag = self.tag_repo.buscar_por_uuid(uuid)
+        if not tag:
+            return False
+
+        # Verificar se tem filhas ativas
+        filhas_ativas = [t for t in tag.tags_filhas if t.ativo]
+        if filhas_ativas:
+            raise ValueError("Não é possível inativar uma tag que possui sub-tags ativas. Inative as sub-tags primeiro.")
+
+        result = self.tag_repo.desativar(uuid)
+        self.session.flush()
+        return result
+
+    def reativar_tag(self, uuid: str) -> bool:
+        """
+        Reativa uma tag inativa
+
+        Args:
+            uuid: UUID da tag
+
+        Returns:
+            True se reativada, False se não encontrada
+        """
+        # Buscar tag inativa
+        tag = self.session.query(self.tag_repo.model_class).filter_by(uuid=uuid, ativo=False).first()
+        if not tag:
+            return False
+
+        # Verificar se a tag pai está ativa (se tiver pai)
+        if tag.uuid_tag_pai:
+            tag_pai = self.tag_repo.buscar_por_uuid(tag.uuid_tag_pai)
+            if not tag_pai:
+                raise ValueError("Não é possível reativar: a tag pai está inativa. Reative a tag pai primeiro.")
+
+        tag.ativo = True
+        self.session.flush()
+        return True
+
+    def obter_arvore_tags_inativas(self) -> List[Any]:
+        """
+        Obtém árvore de tags inativas (formato flat, não hierárquico)
+
+        Returns:
+            Lista de TagResponseDTO com tags inativas
+        """
+        from src.application.dtos.tag_dto import TagResponseDTO
+
+        # Buscar todas as tags inativas
+        tags_inativas = self.session.query(self.tag_repo.model_class).filter_by(ativo=False).order_by(
+            self.tag_repo.model_class.numeracao
+        ).all()
+
+        resultado = []
+        for tag in tags_inativas:
+            dto = TagResponseDTO(
+                id=hash(tag.uuid) % 2147483647,
+                uuid=tag.uuid,
+                nome=tag.nome,
+                numeracao=tag.numeracao,
+                nivel=tag.nivel,
+                filhos=[]
+            )
+            resultado.append(dto)
+
+        return resultado
