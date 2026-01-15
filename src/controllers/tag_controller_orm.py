@@ -115,3 +115,40 @@ class TagControllerORM:
         except Exception as e:
             print(f"Erro ao obter árvore hierárquica: {e}")
             return []
+
+    @staticmethod
+    def obter_arvore_conteudos() -> List[TagResponseDTO]:
+        """
+        Retorna apenas a árvore de tags de conteúdos (exclui banca/vestibular e etapa)
+
+        Returns:
+            Lista de TagResponseDTOs representando a árvore de conteúdos
+        """
+        try:
+            tree_dicts = services.tag.obter_arvore_conteudos()
+
+            def convert_to_dto_recursive(node_dict):
+                dto = TagResponseDTO.from_dict(node_dict)
+                if 'filhas' in node_dict and node_dict['filhas']:
+                    dto.filhos = [convert_to_dto_recursive(child) for child in node_dict['filhas']]
+                return dto
+
+            return [convert_to_dto_recursive(root_dict) for root_dict in tree_dicts]
+
+        except Exception as e:
+            print(f"Erro ao obter árvore de conteúdos: {e}")
+            return []
+
+    @staticmethod
+    def listar_series() -> List[Dict[str, Any]]:
+        """
+        Lista tags de série/nível de escolaridade
+
+        Returns:
+            Lista de dicts com dados das séries
+        """
+        try:
+            return services.tag.listar_series()
+        except Exception as e:
+            print(f"Erro ao listar séries: {e}")
+            return []

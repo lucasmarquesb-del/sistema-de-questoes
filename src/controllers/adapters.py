@@ -261,6 +261,14 @@ class TagControllerAdapter:
         """Retorna árvore hierárquica de tags"""
         return TagControllerORM.obter_arvore_hierarquica()
 
+    def obter_arvore_conteudos(self):
+        """Retorna árvore hierárquica apenas de tags de conteúdos (exclui banca e etapa)"""
+        return TagControllerORM.obter_arvore_conteudos()
+
+    def listar_series(self):
+        """Lista tags de série/nível de escolaridade"""
+        return TagControllerORM.listar_series()
+
     def listar_todas(self):
         """Lista todas as tags"""
         return TagControllerORM.listar_todas()
@@ -298,3 +306,16 @@ def criar_export_controller():
     """Factory para criar ExportController"""
     from src.controllers.export_controller import ExportController
     return ExportController()
+
+
+def listar_fontes_questao():
+    """Lista todas as fontes de questão (bancas/vestibulares) ativas"""
+    from database import session_manager
+    from models.orm import FonteQuestao
+
+    session = session_manager.create_session()
+    try:
+        fontes = session.query(FonteQuestao).filter_by(ativo=True).order_by(FonteQuestao.sigla).all()
+        return [{'uuid': f.uuid, 'sigla': f.sigla, 'nome_completo': f.nome_completo} for f in fontes]
+    finally:
+        session.close()

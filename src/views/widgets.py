@@ -167,26 +167,41 @@ class TagTreeWidget(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        label = QLabel("Tags:")
-        label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(label)
-        self.tree = QTreeWidget()
-        self.tree.setHeaderLabel("Selecione as tags")
-        self.tree.setMinimumHeight(200)
-        self.tree.itemChanged.connect(self.on_item_changed)
-        layout.addWidget(self.tree)
+        layout.setSpacing(5)
+
+        # Botões de controle (acima da árvore)
         btn_layout = QHBoxLayout()
-        btn_expand = QPushButton("Expandir Tudo")
-        btn_expand.clicked.connect(self.tree.expandAll)
+        btn_layout.setSpacing(3)
+        btn_expand = QPushButton("+")
+        btn_expand.setToolTip("Expandir Tudo")
+        btn_expand.setFixedWidth(30)
+        btn_expand.clicked.connect(self.tree_expand_all)
         btn_layout.addWidget(btn_expand)
-        btn_collapse = QPushButton("Recolher Tudo")
-        btn_collapse.clicked.connect(self.tree.collapseAll)
+        btn_collapse = QPushButton("-")
+        btn_collapse.setToolTip("Recolher Tudo")
+        btn_collapse.setFixedWidth(30)
+        btn_collapse.clicked.connect(self.tree_collapse_all)
         btn_layout.addWidget(btn_collapse)
-        btn_clear = QPushButton("Limpar Seleção")
+        btn_clear = QPushButton("Limpar")
+        btn_clear.setToolTip("Limpar Seleção")
+        btn_clear.setFixedWidth(60)
         btn_clear.clicked.connect(self.clear_selection)
         btn_layout.addWidget(btn_clear)
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
+
+        # Árvore de tags
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabel("Selecione as tags")
+        self.tree.setMinimumHeight(150)
+        self.tree.itemChanged.connect(self.on_item_changed)
+        layout.addWidget(self.tree)
+
+    def tree_expand_all(self):
+        self.tree.expandAll()
+
+    def tree_collapse_all(self):
+        self.tree.collapseAll()
 
     def _add_items_recursively(self, parent_item, tags: List[TagResponseDTO]):
         """Helper recursivo para popular a árvore a partir de DTOs."""

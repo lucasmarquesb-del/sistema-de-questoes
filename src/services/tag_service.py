@@ -120,9 +120,12 @@ class TagService:
             'caminho_completo': tag.obter_caminho_completo()
         }
 
-    def obter_arvore_hierarquica(self) -> List[Dict[str, Any]]:
+    def obter_arvore_hierarquica(self, filtrar_por_nome: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Retorna estrutura hierárquica completa das tags
+
+        Args:
+            filtrar_por_nome: Se fornecido, retorna apenas a árvore da tag raiz com esse nome
 
         Returns:
             Lista de dicts representando a árvore
@@ -138,4 +141,65 @@ class TagService:
             }
 
         raizes = self.tag_repo.listar_raizes()
+
+        # Filtrar por nome da tag raiz se especificado
+        if filtrar_por_nome:
+            raizes = [tag for tag in raizes if tag.nome.upper() == filtrar_por_nome.upper()]
+
         return [construir_arvore(tag) for tag in raizes]
+
+    def obter_arvore_conteudos(self) -> List[Dict[str, Any]]:
+        """
+        Retorna apenas a árvore de tags de conteúdos (exclui vestibular e série)
+
+        As tags de conteúdo têm numeração começando com número (1, 2, 3...)
+        Tags de vestibular começam com "V" (V1, V2...)
+        Tags de série/nível começam com "N" (N1, N2...)
+
+        Returns:
+            Lista de dicts representando a árvore de conteúdos
+        """
+        def construir_arvore(tag):
+            return {
+                'id': hash(tag.uuid) % 2147483647,
+                'uuid': tag.uuid,
+                'nome': tag.nome,
+                'numeracao': tag.numeracao,
+                'nivel': tag.nivel,
+                'filhas': [construir_arvore(filha) for filha in tag.tags_filhas if filha.ativo]
+            }
+
+        raizes = self.tag_repo.listar_raizes()
+
+        # Filtrar apenas tags de conteúdo (numeração começa com número, não V ou N)
+        raizes_filtradas = [
+            tag for tag in raizes
+            if tag.numeracao and tag.numeracao[0].isdigit()
+        ]
+
+        return [construir_arvore(tag) for tag in raizes_filtradas]
+
+    def listar_series(self) -> List[Dict[str, Any]]:
+        """
+        Lista tags de série/nível de escolaridade (numeração começa com N)
+
+        Returns:
+            Lista de dicts com dados das tags de série
+        """
+        raizes = self.tag_repo.listar_raizes()
+
+        # Filtrar apenas tags de série (numeração começa com N)
+        series = [
+            tag for tag in raizes
+            if tag.numeracao and tag.numeracao.startswith('N')
+        ]
+
+        return [
+            {
+                'id': hash(tag.uuid) % 2147483647,
+                'uuid': tag.uuid,
+                'nome': tag.nome,
+                'numeracao': tag.numeracao
+            }
+            for tag in series
+        ]
