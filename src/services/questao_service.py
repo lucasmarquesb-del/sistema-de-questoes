@@ -80,6 +80,7 @@ class QuestaoService:
 
         # Adicionar alternativas (apenas para objetivas)
         alternativas_criadas = []
+        alternativa_correta_uuid = None
         if alternativas and tipo == 'OBJETIVA':
             letra_ordem = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5}
             for alt_data in alternativas:
@@ -92,9 +93,20 @@ class QuestaoService:
                     escala_imagem=alt_data.get('escala_imagem', 1.0)
                 )
                 alternativas_criadas.append(alternativa)
+                # Identificar alternativa correta
+                if alt_data.get('correta'):
+                    alternativa_correta_uuid = alternativa.uuid
 
-        # Criar resposta
-        if resposta_objetiva and tipo == 'OBJETIVA':
+        # Criar resposta objetiva
+        if tipo == 'OBJETIVA' and alternativa_correta_uuid:
+            self.resposta_repo.criar_resposta_objetiva(
+                codigo_questao=questao.codigo,
+                uuid_alternativa_correta=alternativa_correta_uuid,
+                resolucao=resposta_objetiva.get('resolucao') if resposta_objetiva else None,
+                justificativa=resposta_objetiva.get('justificativa') if resposta_objetiva else None
+            )
+        elif resposta_objetiva and tipo == 'OBJETIVA':
+            # Fallback: usar resposta_objetiva passada diretamente
             self.resposta_repo.criar_resposta_objetiva(
                 codigo_questao=questao.codigo,
                 uuid_alternativa_correta=resposta_objetiva['uuid_alternativa_correta'],
@@ -298,6 +310,9 @@ class QuestaoService:
         if alternativas_data is not None and tipo_atual == 'OBJETIVA':
             alternativas_existentes = self.alternativa_repo.buscar_por_questao(codigo)
 
+            # Identificar qual alternativa deve ser a correta
+            alternativa_correta_uuid = None
+
             for alt_data in alternativas_data:
                 letra = alt_data.get('letra')
                 texto = alt_data.get('texto')
@@ -311,9 +326,19 @@ class QuestaoService:
                 if alt_existente:
                     alt_existente.texto = texto
                     if correta:
-                        resposta = self.resposta_repo.buscar_por_questao(codigo)
-                        if resposta:
-                            resposta.uuid_alternativa_correta = alt_existente.uuid
+                        alternativa_correta_uuid = alt_existente.uuid
+
+            # Atualizar ou criar resposta com a alternativa correta
+            if alternativa_correta_uuid:
+                resposta = self.resposta_repo.buscar_por_questao(codigo)
+                if resposta:
+                    resposta.uuid_alternativa_correta = alternativa_correta_uuid
+                else:
+                    # Criar resposta se não existir
+                    self.resposta_repo.criar_resposta_objetiva(
+                        codigo_questao=codigo,
+                        uuid_alternativa_correta=alternativa_correta_uuid
+                    )
 
         self.session.flush()
         return self.buscar_questao(codigo)

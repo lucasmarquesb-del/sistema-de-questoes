@@ -1,6 +1,7 @@
 """
 Model ORM para Alternativa
 """
+import uuid as uuid_lib
 from sqlalchemy import Column, String, Text, ForeignKey, Integer, Numeric, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -13,7 +14,7 @@ class Alternativa(Base):
     """
     __tablename__ = 'alternativa'
 
-    uuid = Column(Text, primary_key=True)
+    uuid = Column(Text, primary_key=True, default=lambda: str(uuid_lib.uuid4()))
     uuid_questao = Column(Text, ForeignKey('questao.uuid'), nullable=False)
     letra = Column(String(1), nullable=False)  # A, B, C, D, E
     ordem = Column(Integer, nullable=False)  # 1, 2, 3, 4, 5 (para randomização)

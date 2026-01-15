@@ -46,6 +46,8 @@ class QuestaoForm(QDialog):
 
         self.init_ui()
         self.setup_connections()
+        self.load_fontes()
+        self.load_series()
         self.load_tags_tree()
 
         if self.is_editing:
@@ -83,11 +85,6 @@ class QuestaoForm(QDialog):
         self.ano_spin.setRange(1900, 2100)
         self.ano_spin.setValue(2026)
         meta_layout.addWidget(self.ano_spin)
-        meta_layout.addWidget(QLabel("Fonte/Banca:"))
-        self.fonte_combo = QComboBox()
-        self.fonte_combo.setEditable(True)
-        self.fonte_combo.addItems(["AUTORAL", "ENEM", "FUVEST", "UNICAMP", "UNESP", "UERJ", "ITA", "IME", "MILITAR"])
-        meta_layout.addWidget(self.fonte_combo)
         meta_layout.addWidget(QLabel("Tipo:"))
         self.tipo_objetiva = QRadioButton("Objetiva")
         self.tipo_discursiva = QRadioButton("Discursiva")
@@ -99,6 +96,20 @@ class QuestaoForm(QDialog):
         meta_layout.addWidget(self.tipo_discursiva)
         meta_layout.addStretch()
         info_layout.addLayout(meta_layout)
+
+        # Segunda linha: Fonte, Série, Dificuldade
+        meta_layout2 = QHBoxLayout()
+        meta_layout2.addWidget(QLabel("Fonte/Banca:"))
+        self.fonte_combo = QComboBox()
+        self.fonte_combo.addItem("Selecione...", None)
+        meta_layout2.addWidget(self.fonte_combo)
+        meta_layout2.addWidget(QLabel("Série/Nível:"))
+        self.serie_combo = QComboBox()
+        self.serie_combo.addItem("Selecione...", None)
+        meta_layout2.addWidget(self.serie_combo)
+        meta_layout2.addStretch()
+        info_layout.addLayout(meta_layout2)
+
         self.difficulty_selector = DifficultySelector()
         info_layout.addWidget(self.difficulty_selector)
         scroll_layout.addWidget(info_group)
@@ -200,10 +211,28 @@ class QuestaoForm(QDialog):
         is_objetiva = self.tipo_objetiva.isChecked()
         self.alternativas_group.setVisible(is_objetiva)
 
-    def load_tags_tree(self):
-        """Carrega a árvore de tags usando o TagController."""
+    def load_fontes(self):
+        """Carrega as fontes/vestibulares no dropdown."""
         try:
-            tags_arvore = self.tag_controller.obter_arvore_tags_completa()
+            vestibulares = self.tag_controller.listar_vestibulares()
+            for vest in vestibulares:
+                self.fonte_combo.addItem(vest['nome'], vest['uuid'])
+        except Exception as e:
+            ErrorHandler.handle_exception(self, e, "Erro ao carregar fontes/vestibulares")
+
+    def load_series(self):
+        """Carrega as séries/níveis no dropdown."""
+        try:
+            series = self.tag_controller.listar_series()
+            for serie in series:
+                self.serie_combo.addItem(serie['nome'], serie['uuid'])
+        except Exception as e:
+            ErrorHandler.handle_exception(self, e, "Erro ao carregar séries")
+
+    def load_tags_tree(self):
+        """Carrega a árvore de tags de conteúdo usando o TagController."""
+        try:
+            tags_arvore = self.tag_controller.obter_arvore_conteudos()
             self.tag_tree_widget.load_tags(tags_arvore)
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao carregar as tags")
@@ -220,7 +249,6 @@ class QuestaoForm(QDialog):
 
             self.titulo_input.setText(getattr(dto, 'titulo', '') or "")
             self.ano_spin.setValue(getattr(dto, 'ano', 2026) or 2026)
-            self.fonte_combo.setCurrentText(getattr(dto, 'fonte', '') or "")
 
             # Mapear dificuldade (string) para ID
             dificuldade = getattr(dto, 'dificuldade', None)
@@ -248,18 +276,40 @@ class QuestaoForm(QDialog):
             else:
                 self.tipo_discursiva.setChecked(True)
 
-            # Tags - extrair UUIDs corretamente
+            # Tags - separar por tipo (conteúdo, fonte, série)
             tags = getattr(dto, 'tags', [])
             if tags:
-                tag_uuids = []
+                tag_conteudo_uuids = []
                 for tag in tags:
+                    tag_uuid = None
+                    tag_numeracao = None
+
                     if hasattr(tag, 'uuid'):
-                        tag_uuids.append(tag.uuid)
+                        tag_uuid = tag.uuid
+                        tag_numeracao = getattr(tag, 'numeracao', '') or ''
                     elif isinstance(tag, dict):
-                        tag_uuids.append(tag.get('uuid'))
-                    elif isinstance(tag, str):
-                        tag_uuids.append(tag)
-                self.tag_tree_widget.set_selected_tags([t for t in tag_uuids if t])
+                        tag_uuid = tag.get('uuid')
+                        tag_numeracao = tag.get('numeracao', '') or ''
+
+                    if not tag_uuid:
+                        continue
+
+                    # Identificar tipo de tag pela numeração
+                    if tag_numeracao.startswith('V'):
+                        # Tag de fonte/vestibular - selecionar no combo
+                        idx = self.fonte_combo.findData(tag_uuid)
+                        if idx >= 0:
+                            self.fonte_combo.setCurrentIndex(idx)
+                    elif tag_numeracao.startswith('N'):
+                        # Tag de série - selecionar no combo
+                        idx = self.serie_combo.findData(tag_uuid)
+                        if idx >= 0:
+                            self.serie_combo.setCurrentIndex(idx)
+                    else:
+                        # Tag de conteúdo - marcar na árvore
+                        tag_conteudo_uuids.append(tag_uuid)
+
+                self.tag_tree_widget.set_selected_tags(tag_conteudo_uuids)
 
         except Exception as e:
             ErrorHandler.handle_exception(self, e, f"Erro ao carregar dados da questão {questao_id}")
@@ -267,19 +317,32 @@ class QuestaoForm(QDialog):
 
     def get_form_data(self) -> dict:
         """Coleta e retorna os dados do formulário em um dicionário."""
+        # Coletar tags de conteúdo
+        tags = self.tag_tree_widget.get_selected_tag_ids()
+
+        # Adicionar tag de fonte/vestibular selecionada
+        fonte_uuid = self.fonte_combo.currentData()
+        if fonte_uuid:
+            tags.append(fonte_uuid)
+
+        # Adicionar tag de série selecionada
+        serie_uuid = self.serie_combo.currentData()
+        if serie_uuid:
+            tags.append(serie_uuid)
+
         data = {
             'titulo': self.titulo_input.text().strip() or None,
             'enunciado': self.enunciado_editor.get_text(),
             'tipo': 'OBJETIVA' if self.tipo_objetiva.isChecked() else 'DISCURSIVA',
             'ano': self.ano_spin.value(),
-            'fonte': self.fonte_combo.currentText(),
+            'fonte': None,  # Não usar mais campo fonte separado, usar tags
             'id_dificuldade': self.difficulty_selector.get_selected_difficulty(),
             'imagem_enunciado': self.enunciado_image.get_image_path(),
             'escala_imagem_enunciado': self.enunciado_image.get_scale(),
             'resolucao': self.resolucao_editor.get_text() or None,
             'gabarito_discursiva': self.gabarito_editor.get_text() or None,
             'observacoes': self.observacoes_edit.toPlainText().strip() or None,
-            'tags': self.tag_tree_widget.get_selected_tag_ids(),
+            'tags': tags,
             'alternativas': []
         }
         if data['tipo'] == 'OBJETIVA':
@@ -292,10 +355,57 @@ class QuestaoForm(QDialog):
                 })
         return data
 
+    def validar_formulario(self, form_data: dict) -> tuple[bool, str]:
+        """
+        Valida os dados do formulário antes de salvar.
+
+        Returns:
+            Tupla (válido, mensagem_erro)
+        """
+        # Validar enunciado
+        if not form_data.get('enunciado', '').strip():
+            return False, "O enunciado da questão é obrigatório."
+
+        # Validar tags de conteúdo
+        tags = form_data.get('tags', [])
+        tags_conteudo = self.tag_tree_widget.get_selected_content_tags()
+        if not tags_conteudo:
+            return False, "É necessário selecionar pelo menos uma tag de conteúdo (assunto)."
+
+        # Validações específicas para questões objetivas
+        if form_data.get('tipo') == 'OBJETIVA':
+            alternativas = form_data.get('alternativas', [])
+
+            # Verificar se todas as 5 alternativas estão preenchidas
+            alternativas_vazias = []
+            for alt in alternativas:
+                if not alt.get('texto', '').strip():
+                    alternativas_vazias.append(alt.get('letra'))
+
+            if alternativas_vazias:
+                letras = ', '.join(alternativas_vazias)
+                return False, f"Todas as 5 alternativas devem ser preenchidas.\nAlternativas vazias: {letras}"
+
+            # Verificar se exatamente uma alternativa está marcada como correta
+            alternativas_corretas = [alt for alt in alternativas if alt.get('correta')]
+            if len(alternativas_corretas) == 0:
+                return False, "É necessário marcar uma alternativa como correta."
+            elif len(alternativas_corretas) > 1:
+                letras = ', '.join([alt.get('letra') for alt in alternativas_corretas])
+                return False, f"Apenas uma alternativa pode ser marcada como correta.\nMarcadas: {letras}"
+
+        return True, ""
+
     def save_questao(self):
         """Valida e salva a questão (criação ou atualização)."""
         logger.info("Tentando salvar a questão...")
         form_data = self.get_form_data()
+
+        # Validar formulário
+        valido, erro = self.validar_formulario(form_data)
+        if not valido:
+            QMessageBox.warning(self, "Validação", erro)
+            return
 
         # Campos extras que nao estao nos DTOs (para uso futuro)
         campos_extras = ['imagem_enunciado', 'escala_imagem_enunciado', 'resolucao', 'gabarito_discursiva']

@@ -212,6 +212,8 @@ class TagTreeWidget(QWidget):
             item.setCheckState(0, Qt.CheckState.Unchecked)
             # Armazenar UUID para lookup correto no banco
             item.setData(0, Qt.ItemDataRole.UserRole, tag_dto.uuid)
+            # Armazenar numeração para identificar tipo de tag (UserRole+1)
+            item.setData(0, Qt.ItemDataRole.UserRole + 1, tag_dto.numeracao)
             if tag_dto.filhos:
                 self._add_items_recursively(item, tag_dto.filhos)
 
@@ -233,6 +235,24 @@ class TagTreeWidget(QWidget):
             if item.checkState(0) == Qt.CheckState.Checked:
                 tag_uuid = item.data(0, Qt.ItemDataRole.UserRole)
                 if tag_uuid is not None:
+                    selected_ids.append(tag_uuid)
+            iterator += 1
+        return selected_ids
+
+    def get_selected_content_tags(self) -> List[str]:
+        """
+        Retorna lista de UUIDs das tags de conteúdo selecionadas.
+        Tags de conteúdo são aquelas cuja numeração começa com dígito (não V ou N).
+        """
+        selected_ids = []
+        iterator = QTreeWidgetItemIterator(self.tree)
+        while iterator.value():
+            item = iterator.value()
+            if item.checkState(0) == Qt.CheckState.Checked:
+                tag_uuid = item.data(0, Qt.ItemDataRole.UserRole)
+                numeracao = item.data(0, Qt.ItemDataRole.UserRole + 1) or ""
+                # Verificar se é tag de conteúdo (numeração começa com dígito)
+                if tag_uuid and numeracao and numeracao[0].isdigit():
                     selected_ids.append(tag_uuid)
             iterator += 1
         return selected_ids

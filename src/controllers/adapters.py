@@ -49,6 +49,7 @@ class QuestaoControllerAdapter:
                 {
                     'letra': alt.letra,
                     'texto': alt.texto,
+                    'correta': getattr(alt, 'correta', False),
                     'uuid_imagem': getattr(alt, 'uuid_imagem', None),
                     'escala_imagem': getattr(alt, 'escala_imagem', 1.0)
                 }
