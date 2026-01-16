@@ -1058,6 +1058,7 @@ class QuestaoCard(QFrame):
 
     def __init__(self, questao_dto, parent=None):
         super().__init__(parent)
+        self.questao_dto = questao_dto  # Guardar DTO para preview
         # Aceitar tanto dict quanto DTO - priorizar codigo
         if isinstance(questao_dto, dict):
             self.questao_id = questao_dto.get('codigo') or questao_dto.get('uuid')
@@ -1181,7 +1182,7 @@ class QuestaoCard(QFrame):
 
         btn_visualizar = QPushButton("Visualizar")
         btn_visualizar.setMaximumWidth(90)
-        btn_visualizar.clicked.connect(lambda: self.clicked.emit(self.questao_id))
+        btn_visualizar.clicked.connect(lambda checked: self._show_preview())
         btn_layout.addWidget(btn_visualizar)
 
         btn_editar = QPushButton("Editar")
@@ -1214,10 +1215,87 @@ class QuestaoCard(QFrame):
 
         layout.addLayout(btn_layout)
 
-    def mousePressEvent(self, event):
+    def mouseDoubleClickEvent(self, event):
+        """Abre preview com duplo clique no card."""
         if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit(self.questao_id)
-        super().mousePressEvent(event)
+            self._show_preview()
+        super().mouseDoubleClickEvent(event)
+
+    def _show_preview(self):
+        """Abre o diálogo de preview da questão no formato PDF."""
+        from PyQt6.QtWidgets import QMessageBox
+        try:
+            # Importação local para evitar dependência circular
+            from src.views.questao_preview import QuestaoPreview
+            from src.controllers.adapters import criar_questao_controller
+
+            # Buscar dados completos da questão
+            controller = criar_questao_controller()
+            questao_completa = controller.obter_questao_completa(self.questao_id)
+
+            if not questao_completa:
+                QMessageBox.warning(self, "Aviso", f"Questão {self.questao_id} não encontrada.")
+                return
+
+            # Montar dados para o preview
+            preview_data = {
+                'id': self.questao_id,
+                'titulo': getattr(questao_completa, 'titulo', None) or 'Sem título',
+                'tipo': getattr(questao_completa, 'tipo', 'N/A'),
+                'enunciado': getattr(questao_completa, 'enunciado', ''),
+                'fonte': self._extrair_fonte(questao_completa),
+                'ano': getattr(questao_completa, 'ano', None),
+                'dificuldade': getattr(questao_completa, 'dificuldade', 'N/A'),
+                'resolucao': getattr(questao_completa, 'resolucao', None),
+                'tags': self._extrair_tags_nomes(questao_completa),
+                'alternativas': []
+            }
+
+            # Extrair alternativas se objetiva
+            alternativas = getattr(questao_completa, 'alternativas', [])
+            if alternativas:
+                for alt in alternativas:
+                    if hasattr(alt, 'letra'):
+                        preview_data['alternativas'].append({
+                            'letra': alt.letra,
+                            'texto': getattr(alt, 'texto', ''),
+                            'correta': getattr(alt, 'correta', False)
+                        })
+                    elif isinstance(alt, dict):
+                        preview_data['alternativas'].append({
+                            'letra': alt.get('letra', ''),
+                            'texto': alt.get('texto', ''),
+                            'correta': alt.get('correta', False)
+                        })
+
+            # Abrir diálogo de preview
+            preview_dialog = QuestaoPreview(preview_data, self)
+            preview_dialog.exec()
+
+        except Exception as e:
+            logger.error(f"Erro ao abrir preview da questão {self.questao_id}: {e}")
+            QMessageBox.critical(self, "Erro", f"Erro ao abrir preview:\n{str(e)}")
+
+    def _extrair_fonte(self, questao):
+        """Extrai o nome da fonte das tags da questão."""
+        tags = getattr(questao, 'tags', []) or []
+        for tag in tags:
+            numeracao = getattr(tag, 'numeracao', '') or ''
+            if numeracao.startswith('V'):
+                return getattr(tag, 'nome', '') or ''
+        return None
+
+    def _extrair_tags_nomes(self, questao):
+        """Extrai nomes das tags de conteúdo da questão."""
+        nomes = []
+        tags = getattr(questao, 'tags', []) or []
+        for tag in tags:
+            numeracao = getattr(tag, 'numeracao', '') or ''
+            nome = getattr(tag, 'nome', '') or ''
+            # Incluir apenas tags de conteúdo (numeração começa com dígito)
+            if numeracao and numeracao[0].isdigit() and nome:
+                nomes.append(nome)
+        return nomes
 
 
 class DifficultySelector(QWidget):
