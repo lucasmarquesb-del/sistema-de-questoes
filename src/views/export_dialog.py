@@ -6,7 +6,7 @@ DESCRIÇÃO: Diálogo de configuração de exportação
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QCheckBox, QRadioButton, QButtonGroup, QSpinBox, QSlider,
-    QComboBox, QGroupBox, QFileDialog, QMessageBox
+    QComboBox, QGroupBox, QFileDialog, QMessageBox, QLineEdit
 )
 from PyQt6.QtCore import Qt
 import logging
@@ -27,7 +27,7 @@ class ExportDialog(QDialog):
         self.id_lista = id_lista
         self.controller = criar_export_controller()
         self.setWindowTitle(f"Exportar Lista ID {id_lista} para LaTeX")
-        self.setMinimumSize(500, 600)
+        self.setMinimumSize(550, 750)
         self.init_ui()
         self.load_templates()
         logger.info(f"ExportDialog inicializado para lista ID: {id_lista}")
@@ -101,9 +101,69 @@ class ExportDialog(QDialog):
         template_h_layout = QHBoxLayout()
         template_h_layout.addWidget(QLabel("Template:"))
         self.template_combo = QComboBox()
+        self.template_combo.currentTextChanged.connect(self._on_template_changed)
         template_h_layout.addWidget(self.template_combo)
         template_layout.addLayout(template_h_layout)
         layout.addWidget(template_group)
+
+        # Campos específicos do template Wallon (inicialmente ocultos)
+        self.wallon_group = QGroupBox("Configurações do Template Wallon")
+        wallon_layout = QVBoxLayout(self.wallon_group)
+
+        # Estilo para labels com largura fixa
+        label_width = 80
+
+        # Trimestre
+        trimestre_layout = QHBoxLayout()
+        lbl_trimestre = QLabel("Trimestre:")
+        lbl_trimestre.setMinimumWidth(label_width)
+        trimestre_layout.addWidget(lbl_trimestre)
+        self.trimestre_combo = QComboBox()
+        self.trimestre_combo.addItems(["I", "II", "III", "IV"])
+        self.trimestre_combo.setMinimumWidth(100)
+        self.trimestre_combo.setMinimumHeight(30)
+        trimestre_layout.addWidget(self.trimestre_combo)
+        trimestre_layout.addStretch()
+        wallon_layout.addLayout(trimestre_layout)
+
+        # Professor
+        prof_layout = QHBoxLayout()
+        lbl_professor = QLabel("Professor:")
+        lbl_professor.setMinimumWidth(label_width)
+        prof_layout.addWidget(lbl_professor)
+        self.professor_input = QLineEdit()
+        self.professor_input.setPlaceholderText("Nome do professor")
+        self.professor_input.setMinimumHeight(30)
+        prof_layout.addWidget(self.professor_input)
+        wallon_layout.addLayout(prof_layout)
+
+        # Disciplina
+        disc_layout = QHBoxLayout()
+        lbl_disciplina = QLabel("Disciplina:")
+        lbl_disciplina.setMinimumWidth(label_width)
+        disc_layout.addWidget(lbl_disciplina)
+        self.disciplina_input = QLineEdit()
+        self.disciplina_input.setPlaceholderText("Nome da disciplina")
+        self.disciplina_input.setMinimumHeight(30)
+        disc_layout.addWidget(self.disciplina_input)
+        wallon_layout.addLayout(disc_layout)
+
+        # Ano
+        ano_layout = QHBoxLayout()
+        lbl_ano = QLabel("Ano:")
+        lbl_ano.setMinimumWidth(label_width)
+        ano_layout.addWidget(lbl_ano)
+        self.ano_input = QLineEdit()
+        self.ano_input.setPlaceholderText("Ex: 2025")
+        self.ano_input.setText("2025")
+        self.ano_input.setMinimumWidth(100)
+        self.ano_input.setMinimumHeight(30)
+        ano_layout.addWidget(self.ano_input)
+        ano_layout.addStretch()
+        wallon_layout.addLayout(ano_layout)
+
+        self.wallon_group.setVisible(False)  # Oculto por padrão
+        layout.addWidget(self.wallon_group)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -130,8 +190,17 @@ class ExportDialog(QDialog):
             # Tenta selecionar o template 'default.tex' se existir
             if "default.tex" in templates:
                 self.template_combo.setCurrentText("default.tex")
+            # Atualizar visibilidade dos campos específicos
+            self._on_template_changed(self.template_combo.currentText())
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao carregar templates LaTeX.")
+
+    def _on_template_changed(self, template_name: str):
+        """Mostra/oculta campos específicos do template selecionado."""
+        is_wallon = "wallon" in template_name.lower()
+        self.wallon_group.setVisible(is_wallon)
+        # Ajustar tamanho da janela
+        self.adjustSize()
 
     def perform_preview(self):
         """Gera um PDF temporário para preview antes da exportação final."""
@@ -174,7 +243,12 @@ class ExportDialog(QDialog):
                     escala_imagens=self.escala_slider.value() / 100.0,
                     template_latex=template_selecionado,
                     tipo_exportacao="direta",  # Sempre gerar PDF para preview
-                    output_dir=str(temp_dir)
+                    output_dir=str(temp_dir),
+                    # Campos específicos do template Wallon
+                    trimestre=self.trimestre_combo.currentText() if self.wallon_group.isVisible() else None,
+                    professor=self.professor_input.text() if self.wallon_group.isVisible() else None,
+                    disciplina=self.disciplina_input.text() if self.wallon_group.isVisible() else None,
+                    ano=self.ano_input.text() if self.wallon_group.isVisible() else None
                 )
 
                 logger.info(f"Opções de exportação: {opcoes}")
@@ -235,7 +309,12 @@ class ExportDialog(QDialog):
                 escala_imagens=self.escala_slider.value() / 100.0,
                 template_latex=self.template_combo.currentText(),
                 tipo_exportacao="direta" if self.direct_radio.isChecked() else "manual",
-                output_dir=str(output_dir)
+                output_dir=str(output_dir),
+                # Campos específicos do template Wallon
+                trimestre=self.trimestre_combo.currentText() if self.wallon_group.isVisible() else None,
+                professor=self.professor_input.text() if self.wallon_group.isVisible() else None,
+                disciplina=self.disciplina_input.text() if self.wallon_group.isVisible() else None,
+                ano=self.ano_input.text() if self.wallon_group.isVisible() else None
             )
 
             # 3. Chamar o controller para exportar

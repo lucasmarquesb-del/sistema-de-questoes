@@ -18,3 +18,8 @@ class ExportOptionsDTO:
     layout_colunas: int = 1
     randomizar_questoes: bool = False
     escala_imagens: float = 1.0
+    # Campos opcionais para templates específicos (ex: wallon_av2)
+    trimestre: Optional[str] = None
+    professor: Optional[str] = None
+    disciplina: Optional[str] = None
+    ano: Optional[str] = None

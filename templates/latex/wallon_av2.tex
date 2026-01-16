@@ -1,0 +1,143 @@
+% ============================================
+% TEMPLATE WALLON AV2 - SISTEMA DE QUESTÕES
+% Versão: 1.0.0
+% ============================================
+
+\documentclass[12pt,a4paper]{article}
+
+% Pacotes essenciais
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+\usepackage[margin=1.5cm]{geometry}
+
+% Matemática
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{mathtools}
+
+% Imagens
+\usepackage{graphicx}
+\usepackage{float}
+
+% Listas personalizadas
+\usepackage{enumitem}
+
+% Múltiplas colunas
+\usepackage{multicol}
+
+% Tabelas com cores
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{multirow}
+
+% Caixa de fórmulas e design
+\usepackage{tcolorbox}
+\tcbuselibrary{skins}
+
+% Links e referências
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    pdfauthor={Sistema de Questões},
+    pdftitle={Avaliação}
+}
+
+% Espaçamento
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% Remover numeração de página
+\pagestyle{empty}
+
+% Definir cor vermelha do Wallon
+\definecolor{vr}{RGB}{237,50,55}
+
+% Comando para caixa de resposta vazia
+\newcommand{\emptybox}[2][17cm]{%
+    \begin{center}
+    \fbox{\begin{minipage}[c][#2][c]{#1}
+    \hfill
+    \end{minipage}}
+    \end{center}
+}
+
+% Caminho das imagens (logo)
+\graphicspath{{imagens/logos/}}
+
+% ============================================
+% INÍCIO DO DOCUMENTO
+% ============================================
+
+\begin{document}
+
+% CABEÇALHO WALLON
+\begin{tcolorbox}[enhanced,spread upwards,sharp corners=north,height=3.3cm,
+colframe=white,interior style={top color=vr,bottom color=white}]
+\begin{tcolorbox}[colback=white,
+colframe=white,sharp corners,
+rounded corners=all,arc=5mm,left=0mm,right=0mm]
+\begin{minipage}[c][2.9cm][c]{18cm}
+    \large
+    \begin{tabular}{llll}
+        \multicolumn{3}{l}{PARCIAL II: TESTE - [TRIMESTRE] TRIMESTRE | ANO [ANO]} & \multirow{4}{*}{\includegraphics[scale=0.4]{logowaloon.png}}\\
+        DISCIPLINA: [DISCIPLINA] & PROF.: [PROFESSOR]& &\\
+        \multicolumn{2}{l}{ALUNO(A): \rule{150pt}{.1mm}} & TURMA: \rule{30pt}{.1mm}&\\
+        \multicolumn{3}{l}{DATA:\rule{20pt}{.1mm}$\mid$\rule{20pt}{.1mm}$\mid$[ANO] \hspace{10pt}INÍCIO:\rule{25pt}{.1mm}:\rule{25pt}{.1mm} \hspace{10pt}TÉRMINO:\rule{25pt}{.1mm}:\rule{25pt}{.1mm}} &
+        \end{tabular}
+\end{minipage}
+\end{tcolorbox}
+\end{tcolorbox}
+
+% INSTRUÇÕES
+\begin{minipage}{\textwidth}
+    \includegraphics[scale=0.3]{lampada.png} \textbf{Atenção:}\\
+\rule{\textwidth}{.02mm}\\
+\vspace{-25pt}
+\begin{itemize}[itemsep=-5pt]
+    \small
+    \item Leia cuidadosamente cada uma das questões;
+    \item Não serão permitidas respostas a lápis;
+    \item Esta parcial vale 2,0 pts.
+\end{itemize}
+\end{minipage}
+\vspace{10pt}
+
+% CAIXA DE FÓRMULAS (opcional)
+% [FORMULAS_AQUI]
+
+% ============================================
+% QUESTÕES
+% ============================================
+
+\begin{enumerate}[leftmargin=*]
+
+% [QUESTOES_AQUI]
+
+\end{enumerate}
+
+% ============================================
+% GABARITO (opcional)
+% ============================================
+
+\newpage
+
+\section*{Gabarito}
+
+\begin{enumerate}[leftmargin=*]
+% [GABARITO_AQUI]
+\end{enumerate}
+
+% ============================================
+% RESOLUÇÕES (opcional)
+% ============================================
+
+\newpage
+
+\section*{Resoluções}
+
+\begin{enumerate}[leftmargin=*]
+% [RESOLUCOES_AQUI]
+\end{enumerate}
+
+\end{document}

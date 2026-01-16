@@ -139,10 +139,21 @@ class ExportController:
         # 3. Substituir placeholders do cabecalho
         template_content = template_content.replace("[TITULO_LISTA]", escape_latex(lista_dados['titulo']))
 
+        # Substituir placeholders específicos de templates (ex: wallon_av2)
+        if opcoes.trimestre:
+            template_content = template_content.replace("[TRIMESTRE]", escape_latex(opcoes.trimestre))
+        if opcoes.professor:
+            template_content = template_content.replace("[PROFESSOR]", escape_latex(opcoes.professor))
+        if opcoes.disciplina:
+            template_content = template_content.replace("[DISCIPLINA]", escape_latex(opcoes.disciplina))
+        if opcoes.ano:
+            template_content = template_content.replace("[ANO]", escape_latex(opcoes.ano))
+
         # Formulas (caixa de fórmulas opcional)
         formulas = lista_dados.get('formulas', '') or ''
         if formulas:
-            formulas_block = f"\\begin{{tcolorbox}}[title=Fórmulas]\n{formulas}\n\\end{{tcolorbox}}\n\\vspace{{0.5cm}}"
+            # Caixa simples sem cor, apenas com borda
+            formulas_block = f"\\begin{{tcolorbox}}[colback=white, colframe=black, boxrule=0.5pt, title=Fórmulas, fonttitle=\\bfseries]\n{formulas}\n\\end{{tcolorbox}}\n\\vspace{{0.5cm}}"
             template_content = template_content.replace("% [FORMULAS_AQUI]", formulas_block)
         else:
             template_content = template_content.replace("% [FORMULAS_AQUI]", "")
