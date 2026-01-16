@@ -175,42 +175,42 @@ class LatexEditor(QWidget):
         """Mostra menu com todas as letras gregas."""
         menu = QMenu(self)
 
-        # Submenu minúsculas
+        # Submenu minúsculas (com delimitadores $ para modo matemático)
         submenu_lower = menu.addMenu("Minúsculas")
         gregas_lower = [
-            ("α - alfa", r"\alpha"), ("β - beta", r"\beta"), ("γ - gama", r"\gamma"),
-            ("δ - delta", r"\delta"), ("ε - épsilon", r"\epsilon"), ("ζ - zeta", r"\zeta"),
-            ("η - eta", r"\eta"), ("θ - teta", r"\theta"), ("ι - iota", r"\iota"),
-            ("κ - capa", r"\kappa"), ("λ - lambda", r"\lambda"), ("μ - mi", r"\mu"),
-            ("ν - ni", r"\nu"), ("ξ - csi", r"\xi"), ("π - pi", r"\pi"),
-            ("ρ - rô", r"\rho"), ("σ - sigma", r"\sigma"), ("τ - tau", r"\tau"),
-            ("υ - úpsilon", r"\upsilon"), ("φ - fi", r"\phi"), ("χ - qui", r"\chi"),
-            ("ψ - psi", r"\psi"), ("ω - ômega", r"\omega"),
+            ("α - alfa", r"$\alpha$"), ("β - beta", r"$\beta$"), ("γ - gama", r"$\gamma$"),
+            ("δ - delta", r"$\delta$"), ("ε - épsilon", r"$\epsilon$"), ("ζ - zeta", r"$\zeta$"),
+            ("η - eta", r"$\eta$"), ("θ - teta", r"$\theta$"), ("ι - iota", r"$\iota$"),
+            ("κ - capa", r"$\kappa$"), ("λ - lambda", r"$\lambda$"), ("μ - mi", r"$\mu$"),
+            ("ν - ni", r"$\nu$"), ("ξ - csi", r"$\xi$"), ("π - pi", r"$\pi$"),
+            ("ρ - rô", r"$\rho$"), ("σ - sigma", r"$\sigma$"), ("τ - tau", r"$\tau$"),
+            ("υ - úpsilon", r"$\upsilon$"), ("φ - fi", r"$\phi$"), ("χ - qui", r"$\chi$"),
+            ("ψ - psi", r"$\psi$"), ("ω - ômega", r"$\omega$"),
         ]
         for label, cmd in gregas_lower:
             action = QAction(label, self)
             action.triggered.connect(lambda checked, c=cmd: self.insert_latex(c))
             submenu_lower.addAction(action)
 
-        # Submenu maiúsculas
+        # Submenu maiúsculas (com delimitadores $ para modo matemático)
         submenu_upper = menu.addMenu("Maiúsculas")
         gregas_upper = [
-            ("Γ - Gama", r"\Gamma"), ("Δ - Delta", r"\Delta"), ("Θ - Teta", r"\Theta"),
-            ("Λ - Lambda", r"\Lambda"), ("Ξ - Csi", r"\Xi"), ("Π - Pi", r"\Pi"),
-            ("Σ - Sigma", r"\Sigma"), ("Υ - Úpsilon", r"\Upsilon"), ("Φ - Fi", r"\Phi"),
-            ("Ψ - Psi", r"\Psi"), ("Ω - Ômega", r"\Omega"),
+            ("Γ - Gama", r"$\Gamma$"), ("Δ - Delta", r"$\Delta$"), ("Θ - Teta", r"$\Theta$"),
+            ("Λ - Lambda", r"$\Lambda$"), ("Ξ - Csi", r"$\Xi$"), ("Π - Pi", r"$\Pi$"),
+            ("Σ - Sigma", r"$\Sigma$"), ("Υ - Úpsilon", r"$\Upsilon$"), ("Φ - Fi", r"$\Phi$"),
+            ("Ψ - Psi", r"$\Psi$"), ("Ω - Ômega", r"$\Omega$"),
         ]
         for label, cmd in gregas_upper:
             action = QAction(label, self)
             action.triggered.connect(lambda checked, c=cmd: self.insert_latex(c))
             submenu_upper.addAction(action)
 
-        # Variantes comuns
+        # Variantes comuns (com delimitadores $ para modo matemático)
         submenu_var = menu.addMenu("Variantes")
         gregas_var = [
-            ("ε variante", r"\varepsilon"), ("θ variante", r"\vartheta"),
-            ("π variante", r"\varpi"), ("ρ variante", r"\varrho"),
-            ("σ variante", r"\varsigma"), ("φ variante", r"\varphi"),
+            ("ε variante", r"$\varepsilon$"), ("θ variante", r"$\vartheta$"),
+            ("π variante", r"$\varpi$"), ("ρ variante", r"$\varrho$"),
+            ("σ variante", r"$\varsigma$"), ("φ variante", r"$\varphi$"),
         ]
         for label, cmd in gregas_var:
             action = QAction(label, self)
@@ -654,7 +654,7 @@ class TableEditorDialog(QDialog):
         return (r, g, b)
 
     def generate_latex(self) -> str:
-        """Gera código LaTeX da tabela."""
+        """Gera código LaTeX da tabela com resizebox para ajuste automático."""
         # Definir tipo de borda
         border_style = self.border_combo.currentIndex()
 
@@ -670,6 +670,11 @@ class TableEditorDialog(QDialog):
             col_spec = ' '.join(self.col_alignments)
 
         lines = []
+
+        # Usar resizebox para ajustar tabelas grandes automaticamente
+        # \resizebox{\columnwidth}{!}{...} redimensiona para caber na largura da coluna
+        # Usa \columnwidth em vez de \linewidth para funcionar corretamente em multicols
+        lines.append("\\resizebox{\\columnwidth}{!}{%")
         lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
 
         # Adicionar linhas horizontais conforme estilo
@@ -710,6 +715,7 @@ class TableEditorDialog(QDialog):
             lines.append("\\hline")
 
         lines.append("\\end{tabular}")
+        lines.append("}")  # Fecha o resizebox
 
         return "\n".join(lines)
 

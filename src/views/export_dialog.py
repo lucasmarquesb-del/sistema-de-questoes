@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class ExportDialog(QDialog):
     """Diálogo de configuração de exportação LaTeX"""
 
-    def __init__(self, id_lista: int, parent=None):
+    def __init__(self, id_lista: str, parent=None):
         super().__init__(parent)
         self.id_lista = id_lista
         self.controller = criar_export_controller()
@@ -110,6 +110,11 @@ class ExportDialog(QDialog):
         btn_cancel = QPushButton("❌ Cancelar")
         btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(btn_cancel)
+        btn_preview = QPushButton("👁️ Preview")
+        btn_preview.setStyleSheet("background-color: #9b59b6; color: white; padding: 8px 20px; font-weight: bold; border-radius: 4px;")
+        btn_preview.setToolTip("Gera um PDF temporário para visualização antes de exportar")
+        btn_preview.clicked.connect(self.perform_preview)
+        btn_layout.addWidget(btn_preview)
         btn_export = QPushButton("📄 Exportar")
         btn_export.setStyleSheet("background-color: #2980b9; color: white; padding: 8px 20px; font-weight: bold; border-radius: 4px;")
         btn_export.clicked.connect(self.perform_export)
@@ -127,6 +132,87 @@ class ExportDialog(QDialog):
                 self.template_combo.setCurrentText("default.tex")
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao carregar templates LaTeX.")
+
+    def perform_preview(self):
+        """Gera um PDF temporário para preview antes da exportação final."""
+        import tempfile
+        import subprocess
+        import sys
+        import os
+        from PyQt6.QtWidgets import QApplication
+
+        logger.info(f"Iniciando preview para lista ID: {self.id_lista}")
+
+        try:
+            # Usar cursor de espera durante a geração
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            QApplication.processEvents()
+
+            try:
+                # Usar diretório temporário no diretório do usuário (evita problemas com caminhos 8.3)
+                # O tempfile.gettempdir() pode retornar caminhos curtos (ex: LUCAS~1.LUC) que causam
+                # problemas com o pdflatex no Windows
+                temp_dir = Path.home() / ".questoes_preview"
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Diretório temporário: {temp_dir}")
+
+                # Coletar as opções do formulário
+                template_selecionado = self.template_combo.currentText()
+                logger.info(f"Template selecionado: '{template_selecionado}'")
+
+                if not template_selecionado:
+                    QApplication.restoreOverrideCursor()
+                    ErrorHandler.show_error(self, "Erro", "Nenhum template LaTeX selecionado.")
+                    return
+
+                opcoes = ExportOptionsDTO(
+                    id_lista=self.id_lista,
+                    layout_colunas=self.colunas_spin.value(),
+                    incluir_gabarito=self.gabarito_check.isChecked(),
+                    incluir_resolucoes=self.resolucao_check.isChecked(),
+                    randomizar_questoes=self.randomizar_check.isChecked(),
+                    escala_imagens=self.escala_slider.value() / 100.0,
+                    template_latex=template_selecionado,
+                    tipo_exportacao="direta",  # Sempre gerar PDF para preview
+                    output_dir=str(temp_dir)
+                )
+
+                logger.info(f"Opções de exportação: {opcoes}")
+
+                # Gerar o PDF de preview
+                result_path = self.controller.exportar_lista(opcoes)
+                logger.info(f"Resultado da exportação: {result_path}")
+
+            finally:
+                # Restaurar cursor normal
+                QApplication.restoreOverrideCursor()
+
+            if result_path:
+                result_path = Path(result_path) if not isinstance(result_path, Path) else result_path
+                logger.info(f"Verificando existência do arquivo: {result_path}")
+                if result_path.exists():
+                    # Abrir o PDF para visualização (cross-platform)
+                    logger.info(f"Preview gerado com sucesso: {result_path}")
+                    if sys.platform == 'win32':
+                        os.startfile(str(result_path))
+                    elif sys.platform == 'darwin':  # macOS
+                        subprocess.run(['open', str(result_path)])
+                    else:  # Linux
+                        subprocess.run(['xdg-open', str(result_path)])
+                    return
+                else:
+                    logger.error(f"Arquivo não existe: {result_path}")
+
+            ErrorHandler.show_error(self, "Erro", "Não foi possível gerar o preview.")
+
+        except RuntimeError as re:
+            QApplication.restoreOverrideCursor()
+            logger.error(f"RuntimeError no preview: {re}")
+            QMessageBox.critical(self, "Erro de Compilação", str(re) + "\nVerifique se há erros no conteúdo LaTeX.")
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            logger.error(f"Exception no preview: {e}", exc_info=True)
+            QMessageBox.critical(self, "Erro no Preview", f"Erro ao gerar preview:\n\n{str(e)}")
 
     def perform_export(self):
         """Executa a exportação da lista com as configurações escolhidas."""

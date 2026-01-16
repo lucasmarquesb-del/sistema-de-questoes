@@ -365,6 +365,25 @@ class QuestaoPreview(QDialog):
         # Sublinhado: \underline{texto}
         texto = re.sub(r'\\underline\{([^}]*)\}', r'<u>\1</u>', texto)
 
+        # Letras gregas (remover $...$ e converter para Unicode)
+        gregas = {
+            r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
+            r'\epsilon': 'ε', r'\varepsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η',
+            r'\theta': 'θ', r'\vartheta': 'ϑ', r'\iota': 'ι', r'\kappa': 'κ',
+            r'\lambda': 'λ', r'\mu': 'μ', r'\nu': 'ν', r'\xi': 'ξ',
+            r'\pi': 'π', r'\varpi': 'ϖ', r'\rho': 'ρ', r'\varrho': 'ϱ',
+            r'\sigma': 'σ', r'\varsigma': 'ς', r'\tau': 'τ', r'\upsilon': 'υ',
+            r'\phi': 'φ', r'\varphi': 'φ', r'\chi': 'χ', r'\psi': 'ψ', r'\omega': 'ω',
+            r'\Gamma': 'Γ', r'\Delta': 'Δ', r'\Theta': 'Θ', r'\Lambda': 'Λ',
+            r'\Xi': 'Ξ', r'\Pi': 'Π', r'\Sigma': 'Σ', r'\Upsilon': 'Υ',
+            r'\Phi': 'Φ', r'\Psi': 'Ψ', r'\Omega': 'Ω',
+        }
+        # Primeiro remover os delimitadores $...$
+        texto = re.sub(r'\$([^$]+)\$', r'\1', texto)
+        # Depois substituir os comandos LaTeX por Unicode
+        for latex, unicode_char in gregas.items():
+            texto = texto.replace(latex, unicode_char)
+
         # Preservar quebras de linha
         texto = texto.replace('\n', '<br>')
 

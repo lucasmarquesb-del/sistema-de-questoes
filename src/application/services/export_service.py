@@ -42,7 +42,12 @@ def escape_latex(text: str) -> str:
     # 4. Preservar ambientes begin/end
     text = re.sub(r'\\begin\{[^}]+\}.*?\\end\{[^}]+\}', save_block, text, flags=re.DOTALL)
 
-    # 5. Preservar comandos LaTeX (ex: \alpha, \textbf{...}, \frac{}{})
+    # 5. Envolver letras gregas isoladas com $ (apenas se não estiver já em modo matemático)
+    # Padrão: letra grega que NÃO é precedida por $ e NÃO é seguida por letra
+    gregas = r'(?<!\$)(\\(?:alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|varpi|rho|varrho|sigma|varsigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega))(?![a-zA-Z])(?!\$)'
+    text = re.sub(gregas, r'$\1$', text)
+
+    # 6. Preservar comandos LaTeX (ex: \textbf{...}, \frac{}{})
     # Inclui comandos com múltiplos argumentos {}
     text = re.sub(r'\\[a-zA-Z]+(?:\s*\{[^}]*\})*', save_block, text)
 
