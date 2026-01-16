@@ -203,6 +203,7 @@ class QuestaoForm(QDialog):
         btn_image = QPushButton("🖼️")
         btn_image.setMaximumWidth(40)
         btn_image.setToolTip("Adicionar imagem à alternativa")
+        btn_image.clicked.connect(lambda checked, ti=texto_input: self._inserir_imagem_alternativa(ti))
         layout.addWidget(btn_image)
         widget.checkbox = checkbox
         widget.letra = letra
@@ -210,6 +211,23 @@ class QuestaoForm(QDialog):
         widget.btn_image = btn_image
         widget.image_path = None
         return widget
+
+    def _inserir_imagem_alternativa(self, texto_input: QLineEdit):
+        """Insere uma imagem no texto da alternativa."""
+        from src.views.widgets import ImageInsertDialog
+
+        # Abrir diálogo para selecionar imagem e configurar escala
+        dialog = ImageInsertDialog(self)
+        if dialog.exec():
+            caminho = dialog.get_image_path()
+            escala = dialog.get_scale()
+            if caminho:
+                # Inserir placeholder no texto da alternativa
+                placeholder = f"[IMG:{caminho}:{escala}]"
+                texto_atual = texto_input.text()
+                cursor_pos = texto_input.cursorPosition()
+                novo_texto = texto_atual[:cursor_pos] + placeholder + texto_atual[cursor_pos:]
+                texto_input.setText(novo_texto)
 
     def setup_connections(self):
         self.tipo_objetiva.toggled.connect(self.on_tipo_changed)

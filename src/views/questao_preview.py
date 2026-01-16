@@ -131,9 +131,6 @@ class QuestaoPreview(QDialog):
             page_layout.addSpacing(10)
 
             for alt in self.questao_data['alternativas']:
-                alt_layout = QHBoxLayout()
-                alt_layout.setContentsMargins(20, 2, 0, 2)
-
                 # Letra da alternativa
                 letra = alt.get('letra', '')
                 correta = alt.get('correta', False)
@@ -142,26 +139,53 @@ class QuestaoPreview(QDialog):
                 if correta:
                     letra_text = f"<b style='color: green;'>{letra})</b>"
 
+                # Container principal da alternativa
+                alt_container = QWidget()
+                alt_container_layout = QVBoxLayout(alt_container)
+                alt_container_layout.setContentsMargins(20, 2, 0, 2)
+                alt_container_layout.setSpacing(2)
+
+                # Primeira linha: letra + texto
+                first_line = QHBoxLayout()
+                first_line.setAlignment(Qt.AlignmentFlag.AlignTop)
+
                 letra_label = QLabel(letra_text)
                 letra_label.setFont(QFont("Times New Roman", 12))
                 letra_label.setTextFormat(Qt.TextFormat.RichText)
                 letra_label.setFixedWidth(30)
-                alt_layout.addWidget(letra_label)
+                first_line.addWidget(letra_label)
 
-                # Texto da alternativa
-                texto_alt = self._formatar_texto_latex(alt.get('texto', ''))
-                if correta:
-                    texto_alt = f"<span style='color: green;'>{texto_alt}</span> ✓"
+                # Processar texto da alternativa (pode conter imagens)
+                texto_alt_raw = alt.get('texto', '')
+                alt_widgets = self._processar_texto_com_imagens(texto_alt_raw)
 
-                texto_label = QLabel(texto_alt)
-                texto_label.setFont(QFont("Times New Roman", 12))
-                texto_label.setTextFormat(Qt.TextFormat.RichText)
-                texto_label.setWordWrap(True)
-                alt_layout.addWidget(texto_label, 1)
+                # Se há widgets, adicionar o primeiro na mesma linha da letra
+                if alt_widgets:
+                    first_widget = alt_widgets[0]
+                    # Alinhar imagens à esquerda nas alternativas
+                    if isinstance(first_widget, QLabel) and first_widget.pixmap() and not first_widget.pixmap().isNull():
+                        first_widget.setAlignment(Qt.AlignmentFlag.AlignLeft)
+                    elif correta and isinstance(first_widget, QLabel):
+                        # É um label de texto, aplicar cor verde
+                        texto_atual = first_widget.text()
+                        first_widget.setText(f"<span style='color: green;'>{texto_atual}</span> ✓")
+                    first_line.addWidget(first_widget, 1)
+                else:
+                    # Sem conteúdo, adicionar label vazio
+                    empty_label = QLabel("")
+                    first_line.addWidget(empty_label, 1)
 
-                alt_widget = QWidget()
-                alt_widget.setLayout(alt_layout)
-                page_layout.addWidget(alt_widget)
+                alt_container_layout.addLayout(first_line)
+
+                # Adicionar widgets restantes (imagens ou mais texto)
+                for widget in alt_widgets[1:]:
+                    # Alinhar imagens à esquerda nas alternativas
+                    if isinstance(widget, QLabel) and widget.pixmap() and not widget.pixmap().isNull():
+                        widget.setAlignment(Qt.AlignmentFlag.AlignLeft)
+                    widget.setContentsMargins(30, 0, 0, 0)  # Indentar para alinhar com texto
+                    alt_container_layout.addWidget(widget)
+
+                page_layout.addWidget(alt_container)
 
         # Resolução (se houver)
         resolucao = self.questao_data.get('resolucao')
