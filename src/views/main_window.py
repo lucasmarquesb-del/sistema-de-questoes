@@ -52,6 +52,9 @@ class MainWindow(QMainWindow):
         # Exibir tela inicial
         self.show_questoes_view()
 
+        # Iniciar maximizada
+        self.showMaximized()
+
         logger.info("MainWindow inicializada")
 
     def setup_ui(self):
