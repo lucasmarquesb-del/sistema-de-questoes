@@ -19,6 +19,30 @@ class ExportController:
         # O ExportService não depende de sessão, então pode ser instanciado diretamente
         self.export_service = ExportService()
 
+    def _processar_imagens_inline(self, texto: str) -> str:
+        """
+        Processa placeholders de imagem [IMG:caminho:escala] e converte para LaTeX.
+
+        Args:
+            texto: Texto com placeholders de imagem
+
+        Returns:
+            Texto com comandos LaTeX \includegraphics
+        """
+        # Padrão: [IMG:caminho:escala]
+        # O caminho pode conter : (Windows drive), então usamos um padrão mais específico
+        # Formato esperado: [IMG:C:/path/to/image.png:0.7] ou [IMG:C:\path\to\image.png:0.7]
+        pattern = r'\[IMG:(.+?):([0-9.]+)\]'
+
+        def replace_image(match):
+            caminho = match.group(1)
+            escala = match.group(2)
+            # Normalizar caminho para LaTeX (usar /)
+            caminho_latex = caminho.replace('\\', '/')
+            return f"\n\n\\begin{{center}}\n\\includegraphics[scale={escala}]{{{caminho_latex}}}\n\\end{{center}}\n\n"
+
+        return re.sub(pattern, replace_image, texto)
+
     def listar_templates_disponiveis(self) -> List[str]:
         """
         Lista os arquivos de template LaTeX (.tex) disponíveis na pasta de templates.
@@ -66,7 +90,11 @@ class ExportController:
         # 4. Gerar o bloco de questoes
         questoes_latex = []
         for i, questao in enumerate(lista_dados['questoes'], 1):
-            enunciado = escape_latex(questao.get('enunciado', ''))
+            enunciado_raw = questao.get('enunciado', '')
+            # Primeiro escapar o texto, depois processar imagens
+            # (imagens geram LaTeX puro que não precisa de escape)
+            enunciado_escaped = escape_latex(enunciado_raw)
+            enunciado = self._processar_imagens_inline(enunciado_escaped)
             fonte = questao.get('fonte') or ''
             ano = str(questao.get('ano') or '')
 

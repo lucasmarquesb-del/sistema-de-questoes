@@ -14,8 +14,9 @@ import logging
 from typing import List
 
 from src.views.widgets import (
-    LatexEditor, ImagePicker, TagTreeWidget, DifficultySelector
+    LatexEditor, TagTreeWidget, DifficultySelector
 )
+from src.views.questao_preview import QuestaoPreview
 from src.controllers.adapters import criar_questao_controller
 from src.controllers.adapters import criar_tag_controller
 from src.application.dtos import QuestaoCreateDTO, QuestaoUpdateDTO, AlternativaDTO, TagCreateDTO
@@ -100,9 +101,10 @@ class QuestaoForm(QDialog):
         # Segunda linha: Fonte, Série, Dificuldade
         meta_layout2 = QHBoxLayout()
         meta_layout2.addWidget(QLabel("Fonte/Banca:"))
-        self.fonte_combo = QComboBox()
-        self.fonte_combo.addItem("Selecione...", None)
-        meta_layout2.addWidget(self.fonte_combo)
+        self.fonte_input = QLineEdit()
+        self.fonte_input.setPlaceholderText("Ex: ENEM, FUVEST, UNICAMP...")
+        self.fonte_input.setToolTip("Digite a fonte/banca. Se não existir, será criada automaticamente.")
+        meta_layout2.addWidget(self.fonte_input)
         meta_layout2.addWidget(QLabel("Série/Nível:"))
         self.serie_combo = QComboBox()
         self.serie_combo.addItem("Selecione...", None)
@@ -119,8 +121,6 @@ class QuestaoForm(QDialog):
         enunciado_layout = QVBoxLayout(enunciado_group)
         self.enunciado_editor = LatexEditor("Digite o enunciado da questão...")
         enunciado_layout.addWidget(self.enunciado_editor)
-        self.enunciado_image = ImagePicker("Imagem do enunciado (opcional):")
-        enunciado_layout.addWidget(self.enunciado_image)
         scroll_layout.addWidget(enunciado_group)
 
         # Alternativas
@@ -219,11 +219,16 @@ class QuestaoForm(QDialog):
         self.alternativas_group.setVisible(is_objetiva)
 
     def load_fontes(self):
-        """Carrega as fontes/vestibulares no dropdown."""
+        """Configura autocomplete para o campo fonte com as fontes existentes."""
         try:
+            from PyQt6.QtWidgets import QCompleter
+            from PyQt6.QtCore import Qt as QtCore
             vestibulares = self.tag_controller.listar_vestibulares()
-            for vest in vestibulares:
-                self.fonte_combo.addItem(vest['nome'], vest['uuid'])
+            nomes = [vest['nome'] for vest in vestibulares]
+            completer = QCompleter(nomes, self)
+            completer.setCaseSensitivity(QtCore.CaseSensitivity.CaseInsensitive)
+            completer.setFilterMode(QtCore.MatchFlag.MatchContains)
+            self.fonte_input.setCompleter(completer)
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao carregar fontes/vestibulares")
 
@@ -290,23 +295,25 @@ class QuestaoForm(QDialog):
                 for tag in tags:
                     tag_uuid = None
                     tag_numeracao = None
+                    tag_nome = None
 
                     if hasattr(tag, 'uuid'):
                         tag_uuid = tag.uuid
                         tag_numeracao = getattr(tag, 'numeracao', '') or ''
+                        tag_nome = getattr(tag, 'nome', '') or ''
                     elif isinstance(tag, dict):
                         tag_uuid = tag.get('uuid')
                         tag_numeracao = tag.get('numeracao', '') or ''
+                        tag_nome = tag.get('nome', '') or ''
 
                     if not tag_uuid:
                         continue
 
                     # Identificar tipo de tag pela numeração
                     if tag_numeracao.startswith('V'):
-                        # Tag de fonte/vestibular - selecionar no combo
-                        idx = self.fonte_combo.findData(tag_uuid)
-                        if idx >= 0:
-                            self.fonte_combo.setCurrentIndex(idx)
+                        # Tag de fonte/vestibular - preencher campo de texto
+                        if tag_nome:
+                            self.fonte_input.setText(tag_nome)
                     elif tag_numeracao.startswith('N'):
                         # Tag de série - selecionar no combo
                         idx = self.serie_combo.findData(tag_uuid)
@@ -327,8 +334,8 @@ class QuestaoForm(QDialog):
         # Coletar tags de conteúdo
         tags = self.tag_tree_widget.get_selected_tag_ids()
 
-        # Adicionar tag de fonte/vestibular selecionada
-        fonte_uuid = self.fonte_combo.currentData()
+        # Adicionar tag de fonte/vestibular (buscar ou criar)
+        fonte_uuid = self._obter_ou_criar_fonte_tag()
         if fonte_uuid:
             tags.append(fonte_uuid)
 
@@ -344,8 +351,6 @@ class QuestaoForm(QDialog):
             'ano': self.ano_spin.value(),
             'fonte': None,  # Não usar mais campo fonte separado, usar tags
             'id_dificuldade': self.difficulty_selector.get_selected_difficulty(),
-            'imagem_enunciado': self.enunciado_image.get_image_path(),
-            'escala_imagem_enunciado': self.enunciado_image.get_scale(),
             'resolucao': self.resolucao_editor.get_text() or None,
             'gabarito_discursiva': self.gabarito_editor.get_text() or None,
             'observacoes': self.observacoes_edit.toPlainText().strip() or None,
@@ -362,6 +367,39 @@ class QuestaoForm(QDialog):
                 })
         return data
 
+    def _obter_ou_criar_fonte_tag(self) -> str:
+        """
+        Obtém o UUID da tag de fonte, criando-a se não existir.
+
+        Returns:
+            UUID da tag de fonte ou None se campo vazio
+        """
+        fonte_texto = self.fonte_input.text().strip()
+        if not fonte_texto:
+            return None
+
+        # Converter para maiúsculas
+        fonte_texto = fonte_texto.upper()
+
+        # Buscar tag existente
+        tag_existente = self.tag_controller.buscar_por_nome(fonte_texto)
+        if tag_existente:
+            return tag_existente.get('uuid')
+
+        # Criar nova tag de vestibular/fonte
+        try:
+            dto = TagCreateDTO(nome=fonte_texto, id_tag_pai=None)
+            nova_tag = self.tag_controller.criar_tag(dto, tipo='VESTIBULAR')
+            if nova_tag:
+                logger.info(f"Tag de fonte '{fonte_texto}' criada automaticamente")
+                # Atualizar autocomplete
+                self.load_fontes()
+                return nova_tag.get('uuid')
+        except Exception as e:
+            logger.error(f"Erro ao criar tag de fonte '{fonte_texto}': {e}")
+
+        return None
+
     def validar_formulario(self, form_data: dict) -> tuple[bool, str]:
         """
         Valida os dados do formulário antes de salvar.
@@ -374,8 +412,8 @@ class QuestaoForm(QDialog):
             return False, "O enunciado da questão é obrigatório."
 
         # Validar fonte (obrigatório)
-        if not self.fonte_combo.currentData():
-            return False, "É necessário selecionar uma fonte/banca para a questão."
+        if not self.fonte_input.text().strip():
+            return False, "É necessário informar uma fonte/banca para a questão."
 
         # Validar tags de conteúdo
         tags = form_data.get('tags', [])
@@ -447,7 +485,7 @@ class QuestaoForm(QDialog):
                     tags.insert(0, uuid_principal)
 
         # Campos extras que nao estao nos DTOs (para uso futuro)
-        campos_extras = ['imagem_enunciado', 'escala_imagem_enunciado', 'resolucao', 'gabarito_discursiva']
+        campos_extras = ['resolucao', 'gabarito_discursiva']
         extras = {k: form_data.pop(k, None) for k in campos_extras}
 
         try:
@@ -593,6 +631,53 @@ class QuestaoForm(QDialog):
             ErrorHandler.handle_exception(self, e, "Erro ao criar tag")
 
     def show_preview(self):
-        QMessageBox.information(self, "Preview", "Funcionalidade de preview ainda não implementada.")
+        """Mostra preview da questão com os dados atuais do formulário."""
+        try:
+            # Coletar dados do formulário
+            form_data = self.get_form_data()
+
+            # Obter nome da fonte digitada
+            fonte_nome = self.fonte_input.text().strip() or None
+
+            # Obter nome da dificuldade
+            dificuldade_id = self.difficulty_selector.get_selected_difficulty()
+            dificuldade_map = {1: 'Fácil', 2: 'Médio', 3: 'Difícil'}
+            dificuldade_nome = dificuldade_map.get(dificuldade_id, 'N/A')
+
+            # Obter nomes das tags selecionadas
+            tags_nomes = []
+            content_tags = self.tag_tree_widget.get_selected_content_tags_with_names()
+            for uuid, nome in content_tags:
+                tags_nomes.append(nome)
+
+            # Montar dados para preview
+            preview_data = {
+                'id': self.questao_id,
+                'titulo': form_data.get('titulo') or 'Sem título',
+                'tipo': form_data.get('tipo'),
+                'enunciado': form_data.get('enunciado'),
+                'fonte': fonte_nome,
+                'ano': form_data.get('ano'),
+                'dificuldade': dificuldade_nome,
+                'resolucao': self.resolucao_editor.get_text() or None,
+                'tags': tags_nomes,
+                'alternativas': []
+            }
+
+            # Adicionar alternativas se objetiva
+            if form_data.get('tipo') == 'OBJETIVA':
+                for alt in form_data.get('alternativas', []):
+                    preview_data['alternativas'].append({
+                        'letra': alt.get('letra'),
+                        'texto': alt.get('texto'),
+                        'correta': alt.get('correta', False)
+                    })
+
+            # Abrir diálogo de preview
+            preview_dialog = QuestaoPreview(preview_data, self)
+            preview_dialog.exec()
+
+        except Exception as e:
+            ErrorHandler.handle_exception(self, e, "Erro ao gerar preview")
 
 logger.info("QuestaoForm carregado")
