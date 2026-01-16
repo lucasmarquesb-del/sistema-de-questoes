@@ -230,7 +230,7 @@ class QuestaoService:
             'fonte': questao.fonte.sigla if questao.fonte else None,
             'dificuldade': questao.dificuldade.codigo if questao.dificuldade else None,
             'observacoes': questao.observacoes,
-            'tags': [{'uuid': tag.uuid, 'nome': tag.nome} for tag in questao.tags if tag.ativo],
+            'tags': [{'uuid': tag.uuid, 'nome': tag.nome, 'numeracao': tag.numeracao} for tag in questao.tags if tag.ativo],
             'alternativas': [
                 {
                     'uuid': alt.uuid,
