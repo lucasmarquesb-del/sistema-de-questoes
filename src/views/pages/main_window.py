@@ -226,9 +226,22 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Dashboard")
         self.header.set_active_nav("dashboard")
 
-        # TODO: Implementar DashboardPage na Fase 8
-        self.show_placeholder("📊 Dashboard",
-                             "Estatísticas e visão geral do banco de questões")
+        if not hasattr(self, 'dashboard_page'):
+            from src.views.pages.dashboard_page import DashboardPage
+            self.dashboard_page = DashboardPage()
+            self.stacked_widget.addWidget(self.dashboard_page)
+
+            # Conectar sinais do Dashboard
+            self.dashboard_page.novaQuestaoClicked.connect(self.show_nova_questao)
+            self.dashboard_page.novaListaClicked.connect(self.show_nova_lista)
+            self.dashboard_page.questoesClicked.connect(self.show_questoes_view)
+            self.dashboard_page.listasClicked.connect(self.show_listas_view)
+            self.dashboard_page.tagsClicked.connect(self.show_tag_manager)
+            self.dashboard_page.exportClicked.connect(self._on_export_clicked)
+
+        # Atualizar estatisticas
+        self.dashboard_page.refresh()
+        self.stacked_widget.setCurrentWidget(self.dashboard_page)
 
     def show_questoes_view(self):
         """Exibe tela de busca de questões"""

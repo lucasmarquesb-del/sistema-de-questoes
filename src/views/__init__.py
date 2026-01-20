@@ -1,16 +1,16 @@
 """
 Views Package
-Contém todas as views (páginas e componentes) da aplicação
+Contem todas as views (paginas e componentes) da aplicacao
 
 Estrutura:
-    - pages/: Páginas completas (telas principais)
-    - components/: Componentes reutilizáveis
+    - pages/: Paginas completas (telas principais)
+    - components/: Componentes reutilizaveis
         - layout/: Componentes de layout (header, sidebar)
-        - cards/: Cards de exibição de dados
-        - forms/: Componentes de formulário
+        - cards/: Cards de exibicao de dados
+        - forms/: Componentes de formulario
         - filters/: Componentes de filtro e busca
-        - dialogs/: Diálogos modais
-        - common/: Componentes genéricos
+        - dialogs/: Dialogos modais
+        - common/: Componentes genericos
     - styles/: Estilos e temas
 """
 
@@ -32,6 +32,9 @@ from src.views.export_dialog import ExportDialog
 from src.views.lista_form import ListaForm
 from src.views.questao_selector_dialog import QuestaoSelectorDialog
 from src.views.questao_preview import QuestaoPreview
+from src.views.search_panel import SearchPanel, SearchPage
+from src.views.lista_panel import ListaPanel, ListaPage
+from src.views.questao_form import QuestaoForm, QuestaoFormPage
 
 __all__ = [
     # Widgets/Componentes
@@ -44,10 +47,16 @@ __all__ = [
     'TableSizeDialog',
     'TableEditorDialog',
     'ColorPickerDialog',
-    # Páginas/Diálogos
+    # Paginas/Dialogos
     'TagManager',
     'ExportDialog',
     'ListaForm',
     'QuestaoSelectorDialog',
     'QuestaoPreview',
+    'SearchPanel',
+    'SearchPage',
+    'ListaPanel',
+    'ListaPage',
+    'QuestaoForm',
+    'QuestaoFormPage',
 ]
