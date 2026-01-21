@@ -2,6 +2,7 @@
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy
 from PyQt6.QtCore import Qt
 from src.views.design.constants import Color, Spacing, Typography, Dimensions
+from src.views.design.enums import DifficultyEnum
 from src.views.components.common.badges import Badge, DifficultyBadge
 
 class BaseCard(QFrame):
@@ -33,49 +34,72 @@ class StatCard(BaseCard):
     """
     def __init__(self, label: str, value: str, variation: str = None, parent=None):
         super().__init__(parent, object_name="stat_card")
-        self.setObjectName("stat_card") # Ensure object name for QSS
+        self.setObjectName("stat_card")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         layout.setSpacing(Spacing.SM)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        value_label = QLabel(value)
-        value_label.setObjectName("stat_value")
-        value_label.setStyleSheet(f"""
+        self._value_label = QLabel(value)
+        self._value_label.setObjectName("stat_value")
+        self._value_label.setStyleSheet(f"""
             QLabel#stat_value {{
                 font-size: {Typography.FONT_SIZE_PAGE_TITLE};
                 font-weight: {Typography.FONT_WEIGHT_BOLD};
                 color: {Color.DARK_TEXT};
             }}
         """)
-        layout.addWidget(value_label)
+        layout.addWidget(self._value_label)
 
-        label_widget = QLabel(label)
-        label_widget.setObjectName("stat_label")
-        label_widget.setStyleSheet(f"""
+        self._label_widget = QLabel(label)
+        self._label_widget.setObjectName("stat_label")
+        self._label_widget.setStyleSheet(f"""
             QLabel#stat_label {{
                 font-size: {Typography.FONT_SIZE_MD};
                 color: {Color.GRAY_TEXT};
             }}
         """)
-        layout.addWidget(label_widget)
+        layout.addWidget(self._label_widget)
 
-        if variation:
-            variation_label = QLabel(variation)
-            variation_label.setObjectName("stat_variation")
-            variation_label.setStyleSheet(f"""
-                QLabel#stat_variation {{
-                    font-size: {Typography.FONT_SIZE_SM};
-                    color: {Color.TAG_GREEN}; /* Example: positive variation */
-                    font-weight: {Typography.FONT_WEIGHT_MEDIUM};
-                }}
-            """)
-            layout.addWidget(variation_label)
+        self._variation_label = QLabel(variation if variation else "")
+        self._variation_label.setObjectName("stat_variation")
+        self._update_variation_style(variation)
+        layout.addWidget(self._variation_label)
+        if not variation:
+            self._variation_label.hide()
 
         self.setLayout(layout)
-        self.setMinimumSize(150, 100) # Example minimum size
-        self.setMaximumWidth(250) # Example maximum width
+        self.setMinimumSize(150, 100)
+        self.setMaximumWidth(250)
+
+    def set_value(self, value: str):
+        """Update the displayed value."""
+        self._value_label.setText(value)
+
+    def set_variation(self, variation: str = None):
+        """Update the variation indicator."""
+        if variation:
+            self._variation_label.setText(variation)
+            self._update_variation_style(variation)
+            self._variation_label.show()
+        else:
+            self._variation_label.hide()
+
+    def _update_variation_style(self, variation: str = None):
+        """Update variation label style based on positive/negative."""
+        if variation and variation.startswith('-'):
+            color = Color.TAG_RED
+        else:
+            color = Color.TAG_GREEN
+
+        self._variation_label.setStyleSheet(f"""
+            QLabel#stat_variation {{
+                font-size: {Typography.FONT_SIZE_SM};
+                color: {color};
+                font-weight: {Typography.FONT_WEIGHT_MEDIUM};
+            }}
+        """)
 
 class QuestionCard(BaseCard):
     """

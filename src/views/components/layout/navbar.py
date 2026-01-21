@@ -81,7 +81,7 @@ class NavMenu(QWidget):
 
         self._add_nav_item(PageEnum.DASHBOARD, Text.NAV_DASHBOARD)
         self._add_nav_item(PageEnum.QUESTION_BANK, Text.NAV_QUESTION_BANK)
-        self._add_nav_item(PageEnum.LISTS, Text.NAV_LISTS)
+        self._add_nav_item(PageEnum.LISTS, Text.NAV_EXAMS)
         self._add_nav_item(PageEnum.TAXONOMY, Text.NAV_TAXONOMY)
 
         self.update_active_item(self.current_page)

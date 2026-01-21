@@ -2,68 +2,109 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QListWidget, QListWidgetItem, QCheckBox, QRadioButton,
-    QButtonGroup, QScrollArea, QSizePolicy, QGridLayout
+    QButtonGroup, QScrollArea, QSizePolicy, QGridLayout, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QMimeData
 from PyQt6.QtGui import QDrag
-from src.views.design.constants import Color, Spacing, Typography, Dimensions, Text
+from typing import Dict, List, Any, Optional
+
+from src.views.design.constants import Color, Spacing, Typography, Dimensions, Text, IconPath
 from src.views.components.common.inputs import TextInput, LatexTextArea
 from src.views.components.common.buttons import PrimaryButton, SecondaryButton
+from src.controllers.lista_controller_orm import ListaControllerORM
+from src.controllers.questao_controller_orm import QuestaoControllerORM
+
 
 class QuestionListItem(QListWidgetItem):
-    """
-    Custom QListWidgetItem to hold question data for drag and drop.
-    """
-    def __init__(self, question_id: str, title: str):
-        super().__init__(f"{question_id} {title}")
-        self.question_id = question_id
-        self.title = title
-        # Store other question details as needed
+    """Custom QListWidgetItem for questions with drag and drop support."""
+
+    def __init__(self, codigo: str, titulo: str, tags: List[str] = None):
+        display_text = f"{codigo} • {titulo[:40]}..." if len(titulo) > 40 else f"{codigo} • {titulo}"
+        if tags:
+            display_text += f" [{', '.join(tags[:2])}]"
+        super().__init__(display_text)
+
+        self.codigo = codigo
+        self.titulo = titulo
+        self.tags = tags or []
         self.setFlags(self.flags() | Qt.ItemFlag.ItemIsDragEnabled)
 
 
 class ExamListPage(QWidget):
     """
     Page for managing exam lists, including creating, editing, and exporting exams.
+    Data is loaded from the database via controllers.
     """
-    exam_selected = pyqtSignal(str) # Emits exam ID
-    add_question_requested = pyqtSignal() # Request to open question bank
-    generate_pdf_requested = pyqtSignal(dict) # Emits export config
-    export_latex_requested = pyqtSignal(dict) # Emits export config
+    exam_selected = pyqtSignal(str)
+    add_question_requested = pyqtSignal()
+    generate_pdf_requested = pyqtSignal(dict)
+    export_latex_requested = pyqtSignal(dict)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("exam_list_page")
 
+        # State
+        self.current_exam_codigo: Optional[str] = None
+        self.current_exam_data: Optional[Dict] = None
+        self.exams_list: List[Dict] = []
+
+        self._setup_ui()
+        self._load_data()
+
+    def _setup_ui(self):
+        """Setup the UI layout."""
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(Spacing.XL, Spacing.LG, Spacing.XL, Spacing.LG)
         main_layout.setSpacing(Spacing.LG)
 
-        # 1. Exam List Sidebar
-        exam_list_frame = QFrame(self)
-        exam_list_frame.setObjectName("exam_list_sidebar")
-        exam_list_frame.setFixedWidth(250)
-        exam_list_frame.setStyleSheet(f"""
+        # 1. Left Panel - Exam List Sidebar
+        exam_list_frame = self._create_exam_list_panel()
+        main_layout.addWidget(exam_list_frame)
+
+        # 2. Center Panel - Exam Editor
+        editor_frame = self._create_editor_panel()
+        main_layout.addWidget(editor_frame, 2)
+
+        # 3. Right Panel - Export Config
+        export_frame = self._create_export_panel()
+        main_layout.addWidget(export_frame)
+
+    def _create_exam_list_panel(self) -> QFrame:
+        """Create the exam list sidebar panel."""
+        frame = QFrame(self)
+        frame.setObjectName("exam_list_sidebar")
+        frame.setFixedWidth(Dimensions.EXAM_LIST_WIDTH)
+        frame.setStyleSheet(f"""
             QFrame#exam_list_sidebar {{
                 background-color: {Color.WHITE};
                 border: 1px solid {Color.BORDER_LIGHT};
                 border-radius: {Dimensions.BORDER_RADIUS_LG};
             }}
         """)
-        exam_list_layout = QVBoxLayout(exam_list_frame)
-        exam_list_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
-        exam_list_layout.setSpacing(Spacing.SM)
 
-        exam_list_title = QLabel("MY EXAMS", exam_list_frame)
-        exam_list_title.setStyleSheet(f"font-weight: {Typography.FONT_WEIGHT_BOLD}; font-size: {Typography.FONT_SIZE_MD}; color: {Color.DARK_TEXT};")
-        exam_list_layout.addWidget(exam_list_title)
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
+        layout.setSpacing(Spacing.SM)
 
-        create_new_exam_btn = PrimaryButton("+ Create New", parent=exam_list_frame)
-        exam_list_layout.addWidget(create_new_exam_btn)
+        # Header
+        title_label = QLabel(Text.EXAM_MY_EXAMS, frame)
+        title_label.setStyleSheet(f"""
+            font-weight: {Typography.FONT_WEIGHT_BOLD};
+            font-size: {Typography.FONT_SIZE_MD};
+            color: {Color.DARK_TEXT};
+        """)
+        layout.addWidget(title_label)
 
-        self.exam_list_widget = QListWidget(exam_list_frame)
+        # Create New Button
+        create_btn = PrimaryButton(Text.EXAM_CREATE_NEW, parent=frame)
+        create_btn.clicked.connect(self._on_create_new_exam)
+        layout.addWidget(create_btn)
+
+        # Exam List
+        self.exam_list_widget = QListWidget(frame)
         self.exam_list_widget.setObjectName("exam_list_widget")
-        self.exam_list_widget.itemClicked.connect(lambda item: self.exam_selected.emit(item.text())) # Placeholder for actual ID
+        self.exam_list_widget.itemClicked.connect(self._on_exam_clicked)
         self.exam_list_widget.setStyleSheet(f"""
             QListWidget#exam_list_widget {{
                 border: none;
@@ -72,7 +113,7 @@ class ExamListPage(QWidget):
                 color: {Color.DARK_TEXT};
             }}
             QListWidget#exam_list_widget::item {{
-                padding: {Spacing.XS}px;
+                padding: {Spacing.SM}px;
                 border-radius: {Dimensions.BORDER_RADIUS_SM};
             }}
             QListWidget#exam_list_widget::item:selected {{
@@ -83,162 +124,353 @@ class ExamListPage(QWidget):
                 background-color: {Color.BORDER_LIGHT};
             }}
         """)
-        self._populate_exam_list() # Populate with dummy data
-        exam_list_layout.addWidget(self.exam_list_widget)
+        layout.addWidget(self.exam_list_widget)
 
-        main_layout.addWidget(exam_list_frame)
+        return frame
 
-
-        # 2. Exam Editor Area
-        editor_area_frame = QFrame(self)
-        editor_area_frame.setObjectName("exam_editor_area")
-        editor_area_frame.setStyleSheet(f"""
+    def _create_editor_panel(self) -> QFrame:
+        """Create the exam editor panel."""
+        frame = QFrame(self)
+        frame.setObjectName("exam_editor_area")
+        frame.setStyleSheet(f"""
             QFrame#exam_editor_area {{
                 background-color: {Color.WHITE};
                 border: 1px solid {Color.BORDER_LIGHT};
                 border-radius: {Dimensions.BORDER_RADIUS_LG};
-                padding: {Spacing.LG}px;
             }}
         """)
-        editor_area_layout = QVBoxLayout(editor_area_frame)
-        editor_area_layout.setContentsMargins(0, 0, 0, 0)
-        editor_area_layout.setSpacing(Spacing.LG)
 
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        layout.setSpacing(Spacing.LG)
 
-        # Header & Instructions
-        header_instr_layout = QGridLayout()
-        header_instr_layout.setSpacing(Spacing.SM)
+        # Section: Header & Instructions
+        section_label = QLabel(Text.EXAM_HEADER_INSTRUCTIONS, frame)
+        section_label.setStyleSheet(f"""
+            font-size: {Typography.FONT_SIZE_MD};
+            font-weight: {Typography.FONT_WEIGHT_SEMIBOLD};
+            color: {Color.DARK_TEXT};
+        """)
+        layout.addWidget(section_label)
 
-        header_instr_layout.addWidget(QLabel("School Name:", editor_area_frame), 0, 0)
-        self.school_name_input = TextInput(parent=editor_area_frame)
-        header_instr_layout.addWidget(self.school_name_input, 0, 1)
+        # Form fields
+        form_grid = QGridLayout()
+        form_grid.setSpacing(Spacing.SM)
 
-        header_instr_layout.addWidget(QLabel("Professor:", editor_area_frame), 1, 0)
-        self.professor_input = TextInput(parent=editor_area_frame)
-        header_instr_layout.addWidget(self.professor_input, 1, 1)
+        form_grid.addWidget(QLabel(f"{Text.LABEL_SCHOOL_NAME}:", frame), 0, 0)
+        self.school_name_input = TextInput(parent=frame)
+        form_grid.addWidget(self.school_name_input, 0, 1)
 
-        header_instr_layout.addWidget(QLabel("Exam Date:", editor_area_frame), 2, 0)
-        self.exam_date_input = TextInput(parent=editor_area_frame) # Using text input for simplicity
-        header_instr_layout.addWidget(self.exam_date_input, 2, 1)
+        form_grid.addWidget(QLabel(f"{Text.LABEL_PROFESSOR}:", frame), 1, 0)
+        self.professor_input = TextInput(parent=frame)
+        form_grid.addWidget(self.professor_input, 1, 1)
 
-        header_instr_layout.addWidget(QLabel("Department:", editor_area_frame), 3, 0)
-        self.department_input = TextInput(parent=editor_area_frame)
-        header_instr_layout.addWidget(self.department_input, 3, 1)
+        form_grid.addWidget(QLabel(f"{Text.LABEL_EXAM_DATE}:", frame), 2, 0)
+        self.exam_date_input = TextInput(parent=frame)
+        form_grid.addWidget(self.exam_date_input, 2, 1)
 
-        header_instr_layout.addWidget(QLabel("Instructions (LaTeX):", editor_area_frame), 4, 0, 1, 2)
-        self.instructions_input = LatexTextArea(parent=editor_area_frame)
+        form_grid.addWidget(QLabel(f"{Text.LABEL_DEPARTMENT}:", frame), 3, 0)
+        self.department_input = TextInput(parent=frame)
+        form_grid.addWidget(self.department_input, 3, 1)
+
+        layout.addLayout(form_grid)
+
+        # Instructions
+        instructions_label = QLabel(f"{Text.LABEL_INSTRUCTIONS}:", frame)
+        layout.addWidget(instructions_label)
+
+        self.instructions_input = LatexTextArea(parent=frame)
         self.instructions_input.setMinimumHeight(100)
-        header_instr_layout.addWidget(self.instructions_input, 5, 0, 1, 2)
+        layout.addWidget(self.instructions_input)
 
-        editor_area_layout.addLayout(header_instr_layout)
+        # Questions Section
+        self.questions_header = QLabel(Text.EXAM_QUESTIONS_TOTAL.format(count=0), frame)
+        self.questions_header.setStyleSheet(f"""
+            font-size: {Typography.FONT_SIZE_MD};
+            font-weight: {Typography.FONT_WEIGHT_SEMIBOLD};
+            color: {Color.DARK_TEXT};
+            margin-top: {Spacing.MD}px;
+        """)
+        layout.addWidget(self.questions_header)
 
+        add_from_bank_btn = PrimaryButton(Text.BUTTON_ADD_FROM_BANK, parent=frame)
+        add_from_bank_btn.clicked.connect(self.add_question_requested.emit)
+        layout.addWidget(add_from_bank_btn)
 
-        # Questions List (Drag & Drop)
-        editor_area_layout.addWidget(QLabel("Questions (0 Total)", editor_area_frame))
-        self.add_from_bank_btn = PrimaryButton("+ Add from Question Bank", parent=editor_area_frame)
-        self.add_from_bank_btn.clicked.connect(self.add_question_requested.emit)
-        editor_area_layout.addWidget(self.add_from_bank_btn)
-
-        self.questions_list_widget = QListWidget(editor_area_frame)
+        # Questions List
+        self.questions_list_widget = QListWidget(frame)
         self.questions_list_widget.setObjectName("exam_questions_list")
         self.questions_list_widget.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.questions_list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.questions_list_widget.setAcceptDrops(True)
         self.questions_list_widget.setDropIndicatorShown(True)
-        self._populate_questions_list() # Dummy questions
-        editor_area_layout.addWidget(self.questions_list_widget)
+        self.questions_list_widget.setStyleSheet(f"""
+            QListWidget#exam_questions_list {{
+                border: 1px solid {Color.BORDER_LIGHT};
+                border-radius: {Dimensions.BORDER_RADIUS_MD};
+                background-color: {Color.LIGHT_BACKGROUND};
+            }}
+            QListWidget#exam_questions_list::item {{
+                padding: {Spacing.SM}px;
+                border-bottom: 1px solid {Color.BORDER_LIGHT};
+            }}
+            QListWidget#exam_questions_list::item:selected {{
+                background-color: {Color.LIGHT_BLUE_BG_2};
+            }}
+        """)
+        layout.addWidget(self.questions_list_widget)
 
-        main_layout.addWidget(editor_area_frame, 2) # Takes more space
+        return frame
 
-
-        # 3. Export Config Panel
-        export_config_frame = QFrame(self)
-        export_config_frame.setObjectName("export_config_panel")
-        export_config_frame.setFixedWidth(200)
-        export_config_frame.setStyleSheet(f"""
+    def _create_export_panel(self) -> QFrame:
+        """Create the export configuration panel."""
+        frame = QFrame(self)
+        frame.setObjectName("export_config_panel")
+        frame.setFixedWidth(Dimensions.EXPORT_CONFIG_WIDTH)
+        frame.setStyleSheet(f"""
             QFrame#export_config_panel {{
                 background-color: {Color.WHITE};
                 border: 1px solid {Color.BORDER_LIGHT};
                 border-radius: {Dimensions.BORDER_RADIUS_LG};
             }}
         """)
-        export_config_layout = QVBoxLayout(export_config_frame)
-        export_config_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
-        export_config_layout.setSpacing(Spacing.LG)
 
-        export_config_layout.addWidget(QLabel("Export Config", export_config_frame))
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
+        layout.setSpacing(Spacing.LG)
 
-        # Column Layout
-        export_config_layout.addWidget(QLabel("Columns:", export_config_frame))
+        # Header
+        title_label = QLabel(Text.EXAM_EXPORT_CONFIG, frame)
+        title_label.setStyleSheet(f"""
+            font-weight: {Typography.FONT_WEIGHT_BOLD};
+            font-size: {Typography.FONT_SIZE_MD};
+            color: {Color.DARK_TEXT};
+        """)
+        layout.addWidget(title_label)
+
+        # Column Layout Options
+        columns_label = QLabel("Layout:", frame)
+        columns_label.setStyleSheet(f"color: {Color.GRAY_TEXT};")
+        layout.addWidget(columns_label)
+
         self.column_button_group = QButtonGroup(self)
-        self.single_column_radio = QRadioButton("Single Column", export_config_frame)
-        self.two_columns_radio = QRadioButton("Two Columns", export_config_frame)
-        self.two_columns_radio.setChecked(True) # Default
+        self.single_column_radio = QRadioButton(Text.EXAM_SINGLE_COLUMN, frame)
+        self.two_columns_radio = QRadioButton(Text.EXAM_TWO_COLUMNS, frame)
+        self.two_columns_radio.setChecked(True)
         self.column_button_group.addButton(self.single_column_radio)
         self.column_button_group.addButton(self.two_columns_radio)
-        export_config_layout.addWidget(self.single_column_radio)
-        export_config_layout.addWidget(self.two_columns_radio)
+        layout.addWidget(self.single_column_radio)
+        layout.addWidget(self.two_columns_radio)
 
         # Options
-        export_config_layout.addWidget(QLabel("Options:", export_config_frame))
-        self.answer_key_checkbox = QCheckBox("Answer Key", export_config_frame)
-        export_config_layout.addWidget(self.answer_key_checkbox)
+        options_label = QLabel("Options:", frame)
+        options_label.setStyleSheet(f"color: {Color.GRAY_TEXT}; margin-top: {Spacing.SM}px;")
+        layout.addWidget(options_label)
 
-        self.point_values_checkbox = QCheckBox("Point Values", export_config_frame)
-        export_config_layout.addWidget(self.point_values_checkbox)
+        self.answer_key_checkbox = QCheckBox(Text.EXAM_INCLUDE_ANSWER_KEY, frame)
+        layout.addWidget(self.answer_key_checkbox)
 
-        self.work_space_checkbox = QCheckBox("Work Space", export_config_frame)
-        export_config_layout.addWidget(self.work_space_checkbox)
+        self.point_values_checkbox = QCheckBox(Text.EXAM_INCLUDE_POINTS, frame)
+        layout.addWidget(self.point_values_checkbox)
 
-        export_config_layout.addStretch()
+        self.work_space_checkbox = QCheckBox(Text.EXAM_INCLUDE_WORKSPACE, frame)
+        layout.addWidget(self.work_space_checkbox)
+
+        layout.addStretch()
 
         # Summary
-        summary_layout = QVBoxLayout()
+        summary_frame = QFrame(frame)
+        summary_frame.setStyleSheet(f"""
+            background-color: {Color.LIGHT_BACKGROUND};
+            border-radius: {Dimensions.BORDER_RADIUS_MD};
+            padding: {Spacing.SM}px;
+        """)
+        summary_layout = QVBoxLayout(summary_frame)
         summary_layout.setSpacing(Spacing.XS)
-        summary_layout.addWidget(QLabel("Total: 0 Q", export_config_frame))
-        summary_layout.addWidget(QLabel("Points: 0/0", export_config_frame))
-        summary_layout.addWidget(QLabel("Pages: ~0", export_config_frame))
-        export_config_layout.addLayout(summary_layout)
+
+        self.total_questions_label = QLabel("Total: 0 Q", summary_frame)
+        summary_layout.addWidget(self.total_questions_label)
+
+        self.total_points_label = QLabel("Points: 0/100", summary_frame)
+        summary_layout.addWidget(self.total_points_label)
+
+        self.pages_estimate_label = QLabel("Pages: ~0", summary_frame)
+        summary_layout.addWidget(self.pages_estimate_label)
+
+        layout.addWidget(summary_frame)
 
         # Action Buttons
-        generate_pdf_btn = PrimaryButton("Generate PDF", parent=export_config_frame)
+        generate_pdf_btn = PrimaryButton(Text.BUTTON_GENERATE_PDF, parent=frame)
         generate_pdf_btn.clicked.connect(self._on_generate_pdf)
-        export_config_layout.addWidget(generate_pdf_btn)
+        layout.addWidget(generate_pdf_btn)
 
-        export_latex_btn = SecondaryButton("Export LaTeX", parent=export_config_frame)
+        export_latex_btn = SecondaryButton(Text.BUTTON_EXPORT_LATEX, parent=frame)
         export_latex_btn.clicked.connect(self._on_export_latex)
-        export_config_layout.addWidget(export_latex_btn)
+        layout.addWidget(export_latex_btn)
 
-        main_layout.addWidget(export_config_frame)
+        return frame
+
+    def _load_data(self):
+        """Load data from database."""
+        try:
+            self.exams_list = ListaControllerORM.listar_listas()
+            self._populate_exam_list()
+        except Exception as e:
+            print(f"Error loading exam list: {e}")
+            self.exams_list = []
 
     def _populate_exam_list(self):
-        # Dummy data
-        self.exam_list_widget.addItem("• Calculus I")
-        self.exam_list_widget.addItem("• Algebra Quiz")
-        self.exam_list_widget.addItem("• Prob Final")
+        """Populate the exam list widget."""
+        self.exam_list_widget.clear()
 
-    def _populate_questions_list(self):
-        # Dummy questions
-        self.questions_list_widget.addItem(QuestionListItem("Q1", "Integration • Power Rule"))
-        self.questions_list_widget.addItem(QuestionListItem("Q2", "Derivatives • Chain Rule"))
-        self.questions_list_widget.addItem(QuestionListItem("Q3", "Limits • L'Hopital's Rule"))
+        for lista in self.exams_list:
+            codigo = lista.get('codigo', '')
+            titulo = lista.get('titulo', 'Sem título')
+            tipo = lista.get('tipo', 'LISTA')
+            total = lista.get('total_questoes', 0)
 
+            item = QListWidgetItem(f"• {titulo}")
+            item.setData(Qt.ItemDataRole.UserRole, codigo)
+            item.setToolTip(f"{codigo} | {tipo} | {total} questões")
+            self.exam_list_widget.addItem(item)
+
+        if not self.exams_list:
+            empty_item = QListWidgetItem(Text.EMPTY_NO_EXAMS)
+            empty_item.setFlags(Qt.ItemFlag.NoItemFlags)
+            self.exam_list_widget.addItem(empty_item)
+
+    def _on_exam_clicked(self, item: QListWidgetItem):
+        """Handle exam selection."""
+        codigo = item.data(Qt.ItemDataRole.UserRole)
+        if codigo:
+            self.current_exam_codigo = codigo
+            self._load_exam_details(codigo)
+            self.exam_selected.emit(codigo)
+
+    def _load_exam_details(self, codigo: str):
+        """Load exam details for editing."""
+        try:
+            exam_data = ListaControllerORM.buscar_lista(codigo)
+            if not exam_data:
+                return
+
+            self.current_exam_data = exam_data
+
+            # Update form (these fields aren't stored in current model)
+            # Placeholders - would need to extend the Lista model
+            self.school_name_input.setText("")
+            self.professor_input.setText("")
+            self.exam_date_input.setText("")
+            self.department_input.setText("")
+            self.instructions_input.setText(exam_data.get('formulas', '') or "")
+
+            # Load questions
+            self._load_exam_questions(exam_data.get('questoes', []))
+
+            # Update summary
+            self._update_summary()
+
+        except Exception as e:
+            print(f"Error loading exam details: {e}")
+
+    def _load_exam_questions(self, questoes: List[Dict]):
+        """Load questions into the list widget."""
+        self.questions_list_widget.clear()
+
+        for idx, q in enumerate(questoes):
+            codigo = q.get('codigo', f'Q{idx+1}')
+            titulo = q.get('titulo', q.get('enunciado', '')[:50])
+            tags = q.get('tags', [])
+
+            item = QuestionListItem(codigo, titulo, tags)
+            self.questions_list_widget.addItem(item)
+
+        self.questions_header.setText(
+            Text.EXAM_QUESTIONS_TOTAL.format(count=len(questoes))
+        )
+
+    def _update_summary(self):
+        """Update the export summary."""
+        count = self.questions_list_widget.count()
+        self.total_questions_label.setText(f"Total: {count} Q")
+        self.total_points_label.setText(f"Points: {count * 10}/100")
+        pages = max(1, count // 3)
+        self.pages_estimate_label.setText(f"Pages: ~{pages}")
+
+    def _on_create_new_exam(self):
+        """Handle create new exam button."""
+        try:
+            result = ListaControllerORM.criar_lista(
+                titulo="Nova Lista",
+                tipo="PROVA"
+            )
+
+            if result:
+                QMessageBox.information(
+                    self, "Sucesso",
+                    f"Lista criada: {result.get('codigo')}"
+                )
+                self._load_data()
+            else:
+                QMessageBox.warning(self, "Erro", "Não foi possível criar a lista.")
+
+        except Exception as e:
+            print(f"Error creating exam: {e}")
+            QMessageBox.warning(self, "Erro", f"Erro ao criar: {str(e)}")
 
     def _on_generate_pdf(self):
+        """Handle generate PDF button."""
         config = self._get_export_config()
         self.generate_pdf_requested.emit(config)
 
     def _on_export_latex(self):
+        """Handle export LaTeX button."""
         config = self._get_export_config()
         self.export_latex_requested.emit(config)
 
-    def _get_export_config(self):
+    def _get_export_config(self) -> Dict:
+        """Get current export configuration."""
         return {
+            "codigo_lista": self.current_exam_codigo,
             "columns": "single" if self.single_column_radio.isChecked() else "two",
             "include_answer_key": self.answer_key_checkbox.isChecked(),
             "include_point_values": self.point_values_checkbox.isChecked(),
             "include_work_space": self.work_space_checkbox.isChecked(),
+            "school_name": self.school_name_input.text(),
+            "professor": self.professor_input.text(),
+            "exam_date": self.exam_date_input.text(),
+            "department": self.department_input.text(),
+            "instructions": self.instructions_input.toPlainText(),
         }
+
+    def add_question_to_exam(self, codigo_questao: str):
+        """Add a question to the current exam."""
+        if not self.current_exam_codigo:
+            QMessageBox.warning(self, "Aviso", "Selecione uma lista primeiro.")
+            return
+
+        try:
+            result = ListaControllerORM.adicionar_questao(
+                self.current_exam_codigo,
+                codigo_questao
+            )
+
+            if result:
+                self._load_exam_details(self.current_exam_codigo)
+            else:
+                QMessageBox.warning(
+                    self, "Erro",
+                    "Não foi possível adicionar a questão."
+                )
+
+        except Exception as e:
+            print(f"Error adding question: {e}")
+            QMessageBox.warning(self, "Erro", f"Erro: {str(e)}")
+
+    def refresh_data(self):
+        """Public method to refresh data."""
+        self._load_data()
+
 
 if __name__ == '__main__':
     import sys
@@ -259,10 +491,18 @@ if __name__ == '__main__':
             self.exam_list_page = ExamListPage(self)
             self.setCentralWidget(self.exam_list_page)
 
-            self.exam_list_page.exam_selected.connect(lambda exam_id: print(f"Exam selected: {exam_id}"))
-            self.exam_list_page.add_question_requested.connect(lambda: print("Add question requested!"))
-            self.exam_list_page.generate_pdf_requested.connect(lambda config: print(f"Generate PDF with config: {config}"))
-            self.exam_list_page.export_latex_requested.connect(lambda config: print(f"Export LaTeX with config: {config}"))
+            self.exam_list_page.exam_selected.connect(
+                lambda codigo: print(f"Exam selected: {codigo}")
+            )
+            self.exam_list_page.add_question_requested.connect(
+                lambda: print("Add question requested!")
+            )
+            self.exam_list_page.generate_pdf_requested.connect(
+                lambda config: print(f"Generate PDF: {config}")
+            )
+            self.exam_list_page.export_latex_requested.connect(
+                lambda config: print(f"Export LaTeX: {config}")
+            )
 
     window = TestMainWindow()
     window.show()

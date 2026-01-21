@@ -41,10 +41,10 @@ class MainWindow(QMainWindow):
         self.body_layout.setContentsMargins(0, 0, 0, 0)
         self.body_layout.setSpacing(0)
 
-        # 2. Sidebar
-        self.sidebar = Sidebar(self)
-        self.sidebar.tag_filter_changed.connect(self._handle_tag_filter_change)
-        self.body_layout.addWidget(self.sidebar)
+        # # 2. Sidebar
+        # self.sidebar = Sidebar(self)
+        # self.sidebar.tag_filter_changed.connect(self._handle_tag_filter_change)
+        # self.body_layout.addWidget(self.sidebar)
 
         # 3. Content Area (QStackedWidget for pages)
         self.content_stacked_widget = QStackedWidget(self)
@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
         if page_enum in self.pages:
             self.content_stacked_widget.setCurrentWidget(self.pages[page_enum])
             self.navbar.update_navbar_for_page(page_enum)
-            self._update_sidebar_visibility(page_enum)
+            # self._update_sidebar_visibility(page_enum)
             self.toast.show_message(f"Showing page: {page_enum.value.replace('_', ' ').title()}", "info")
         else:
             self.toast.show_message(f"Error: Page '{page_enum.value}' not found.", "error")
@@ -141,13 +141,13 @@ class MainWindow(QMainWindow):
         # Here, actual filtering logic would be called for the current page
 
 
-    def _update_sidebar_visibility(self, page_enum: PageEnum):
-        """Shows or hides the sidebar based on the current page."""
-        pages_with_sidebar = [PageEnum.QUESTION_BANK, PageEnum.LISTS, PageEnum.TAXONOMY]
-        if page_enum in pages_with_sidebar:
-            self.sidebar.show()
-        else:
-            self.sidebar.hide()
+    # def _update_sidebar_visibility(self, page_enum: PageEnum):
+    #     """Shows or hides the sidebar based on the current page."""
+    #     pages_with_sidebar = [PageEnum.QUESTION_BANK, PageEnum.LISTS, PageEnum.TAXONOMY]
+    #     if page_enum in pages_with_sidebar:
+    #         self.sidebar.show()
+    #     else:
+    #         self.sidebar.hide()
 
 
 if __name__ == '__main__':
