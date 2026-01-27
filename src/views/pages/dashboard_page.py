@@ -1,12 +1,10 @@
 # src/views/pages/dashboard_page.py
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout,
-    QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView,
-    QSpacerItem, QSizePolicy, QFrame
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QSizePolicy, QFrame
 )
-from PyQt6.QtCore import Qt, QSize, QTimer
-from PyQt6.QtGui import QFont
-from typing import Dict, List, Any, Optional
+from PyQt6.QtCore import Qt
+from typing import Dict, List, Any
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -16,11 +14,10 @@ matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-from src.views.design.constants import Color, Spacing, Typography, Dimensions, Text, IconPath
+from src.views.design.constants import Color, Spacing, Typography, Dimensions, Text
 from src.views.components.common.cards import StatCard
-from src.views.components.common.buttons import SecondaryButton, PrimaryButton
+from src.views.components.common.buttons import SecondaryButton
 from src.controllers.questao_controller_orm import QuestaoControllerORM
-from src.controllers.tag_controller_orm import TagControllerORM
 
 
 class MplCanvas(FigureCanvas):
@@ -46,7 +43,6 @@ class DashboardPage(QWidget):
         # Data containers
         self.stats_data: Dict[str, Any] = {}
         self.questions_data: List[Dict] = []
-        self.tags_data: List[Dict] = []
 
         self._setup_ui()
         self._load_data()
@@ -70,12 +66,10 @@ class DashboardPage(QWidget):
         # Placeholders - will be populated with real data
         self.total_card = StatCard(Text.DASHBOARD_TOTAL_QUESTIONS, "0", parent=self)
         self.new_card = StatCard(Text.DASHBOARD_NEW_THIS_MONTH, "0", parent=self)
-        self.success_card = StatCard(Text.DASHBOARD_SUCCESS_RATE, "0%", parent=self)
         self.time_card = StatCard(Text.DASHBOARD_AVG_RESOLUTION, "0m 0s", parent=self)
 
         self.metric_cards_layout.addWidget(self.total_card)
         self.metric_cards_layout.addWidget(self.new_card)
-        self.metric_cards_layout.addWidget(self.success_card)
         self.metric_cards_layout.addWidget(self.time_card)
         self.metric_cards_layout.addStretch()
         main_layout.addLayout(self.metric_cards_layout)
@@ -97,28 +91,6 @@ class DashboardPage(QWidget):
         charts_row_layout.addWidget(donut_chart_frame, 1)
 
         main_layout.addLayout(charts_row_layout)
-
-        # 4. Accuracy Rate by Topic
-        accuracy_section = self._create_section_header(Text.DASHBOARD_ACCURACY_BY_TOPIC)
-        main_layout.addWidget(accuracy_section)
-
-        self.bar_chart_canvas = MplCanvas(self, width=10, height=2.5, dpi=100)
-        main_layout.addWidget(self.bar_chart_canvas)
-
-        # 5. Top 10 Hardest Questions Table
-        table_header = self._create_table_header()
-        main_layout.addLayout(table_header)
-
-        self.hard_questions_table = self._create_questions_table()
-        main_layout.addWidget(self.hard_questions_table)
-
-        # View all link
-        view_all_layout = QHBoxLayout()
-        view_all_layout.addStretch()
-        view_all_btn = SecondaryButton(Text.DASHBOARD_VIEW_ALL_DIFFICULT, parent=self)
-        view_all_layout.addWidget(view_all_btn)
-        view_all_layout.addStretch()
-        main_layout.addLayout(view_all_layout)
 
         main_layout.addStretch(1)
 
@@ -165,83 +137,6 @@ class DashboardPage(QWidget):
 
         return frame
 
-    def _create_section_header(self, title: str) -> QLabel:
-        """Create a section header label."""
-        label = QLabel(title, self)
-        label.setStyleSheet(f"""
-            font-size: {Typography.FONT_SIZE_XL};
-            font-weight: {Typography.FONT_WEIGHT_SEMIBOLD};
-            color: {Color.DARK_TEXT};
-            margin-top: {Spacing.MD}px;
-        """)
-        return label
-
-    def _create_table_header(self) -> QHBoxLayout:
-        """Create the header for the hardest questions table."""
-        header_layout = QHBoxLayout()
-
-        label = QLabel(Text.DASHBOARD_TOP_HARDEST, self)
-        label.setStyleSheet(f"""
-            font-size: {Typography.FONT_SIZE_XL};
-            font-weight: {Typography.FONT_WEIGHT_SEMIBOLD};
-            color: {Color.DARK_TEXT};
-        """)
-        header_layout.addWidget(label)
-        header_layout.addStretch()
-
-        export_btn = SecondaryButton(Text.DASHBOARD_EXPORT_CSV, parent=self)
-        header_layout.addWidget(export_btn)
-
-        return header_layout
-
-    def _create_questions_table(self) -> QTableWidget:
-        """Create and style the questions table."""
-        table = QTableWidget(self)
-        table.setObjectName("hard_questions_table")
-        table.setColumnCount(5)
-        table.setHorizontalHeaderLabels([
-            Text.TABLE_ID,
-            Text.TABLE_TOPIC,
-            Text.TABLE_TAG,
-            Text.TABLE_SUCCESS_RATE,
-            Text.TABLE_ACTIONS
-        ])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        table.setAlternatingRowColors(True)
-
-        table.setStyleSheet(f"""
-            QTableWidget#hard_questions_table {{
-                background-color: {Color.WHITE};
-                border: 1px solid {Color.BORDER_LIGHT};
-                border-radius: {Dimensions.BORDER_RADIUS_MD};
-                font-size: {Typography.FONT_SIZE_MD};
-                color: {Color.DARK_TEXT};
-                gridline-color: {Color.BORDER_LIGHT};
-            }}
-            QTableWidget#hard_questions_table QHeaderView::section {{
-                background-color: {Color.LIGHT_BACKGROUND};
-                color: {Color.GRAY_TEXT};
-                font-weight: {Typography.FONT_WEIGHT_SEMIBOLD};
-                font-size: {Typography.FONT_SIZE_SM};
-                padding: {Spacing.SM}px;
-                border: none;
-                border-bottom: 1px solid {Color.BORDER_LIGHT};
-            }}
-            QTableWidget#hard_questions_table::item {{
-                padding: {Spacing.SM}px;
-            }}
-            QTableWidget#hard_questions_table::item:selected {{
-                background-color: {Color.LIGHT_BLUE_BG_2};
-                color: {Color.PRIMARY_BLUE};
-            }}
-            QTableWidget#hard_questions_table::item:alternate {{
-                background-color: {Color.LIGHT_BACKGROUND};
-            }}
-        """)
-
-        return table
-
     def _load_data(self):
         """Load data from controllers."""
         try:
@@ -251,13 +146,9 @@ class DashboardPage(QWidget):
             # Get all questions for analysis
             self.questions_data = QuestaoControllerORM.listar_questoes()
 
-            # Get tags for topic analysis
-            self.tags_data = TagControllerORM.listar_todas()
-
             # Update UI with loaded data
             self._update_metric_cards()
             self._update_charts()
-            self._update_table()
 
         except Exception as e:
             print(f"Error loading dashboard data: {e}")
@@ -279,10 +170,6 @@ class DashboardPage(QWidget):
         self.total_card.set_variation(growth_str if growth_rate != 0 else None)
 
         self.new_card.set_value(f"+{new_this_month}")
-
-        # Success rate - placeholder since we don't track this yet
-        self.success_card.set_value("68.5%")
-        self.success_card.set_variation("-1.2%")
 
         # Average resolution time - placeholder
         self.time_card.set_value("4m 32s")
@@ -320,7 +207,6 @@ class DashboardPage(QWidget):
         """Update all charts with real data."""
         self._plot_questions_over_time()
         self._plot_difficulty_distribution()
-        self._plot_accuracy_by_topic()
 
     def _plot_questions_over_time(self):
         """Plot questions added over time using real data."""
@@ -436,103 +322,10 @@ class DashboardPage(QWidget):
         self.donut_chart_canvas.fig.tight_layout()
         self.donut_chart_canvas.draw()
 
-    def _plot_accuracy_by_topic(self):
-        """Plot accuracy by topic using tag data."""
-        ax = self.bar_chart_canvas.axes
-        ax.clear()
-
-        # Get top-level tags and their question counts
-        topic_data = []
-        for tag in self.tags_data:
-            if tag.get('nivel', 0) == 1:  # Top-level tags
-                nome = tag.get('nome', 'Unknown')
-                # Simulated accuracy - in real app, would come from user responses
-                # Using a formula based on question count for demo
-                accuracy = 50 + (hash(nome) % 40)  # Pseudo-random but consistent
-                topic_data.append((nome, accuracy))
-
-        # Sort by accuracy and take top 5
-        topic_data.sort(key=lambda x: x[1], reverse=True)
-        topic_data = topic_data[:5]
-
-        # If no data, use placeholder
-        if not topic_data:
-            topic_data = [
-                ('Álgebra Linear', 82.4),
-                ('Cálculo Diferencial', 64.1),
-                ('Geometria Analítica', 58.7),
-                ('Trigonometria', 45.2),
-                ('Estatística & Probabilidade', 38.9),
-            ]
-
-        topics = [t[0] for t in topic_data]
-        accuracies = [t[1] for t in topic_data]
-
-        # Plot horizontal bars
-        y_pos = range(len(topics))
-        bars = ax.barh(y_pos, accuracies, color=Color.PRIMARY_BLUE, height=0.6)
-
-        # Add percentage labels
-        for i, (bar, acc) in enumerate(zip(bars, accuracies)):
-            ax.text(acc + 1, i, f'{acc:.1f}%', va='center', fontsize=9, color=Color.DARK_TEXT)
-
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(topics, fontsize=9)
-        ax.set_xlim(0, 100)
-        ax.set_xlabel('')
-        ax.invert_yaxis()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.tick_params(bottom=False, labelbottom=False)
-
-        self.bar_chart_canvas.fig.tight_layout()
-        self.bar_chart_canvas.draw()
-
-    def _update_table(self):
-        """Update the hardest questions table with real data."""
-        # Sort questions by difficulty (hard ones first)
-        difficulty_order = {'DIFICIL': 0, 'MUITO_DIFICIL': 0, 'MEDIO': 1, 'FACIL': 2}
-
-        sorted_questions = sorted(
-            self.questions_data,
-            key=lambda q: difficulty_order.get(q.get('dificuldade', ''), 3)
-        )
-
-        # Take top 10
-        hard_questions = sorted_questions[:10]
-
-        self.hard_questions_table.setRowCount(len(hard_questions))
-
-        for row_idx, q in enumerate(hard_questions):
-            codigo = q.get('codigo', 'N/A')
-
-            # Get first tag as topic
-            tags = q.get('tags', [])
-            topic = tags[0] if tags else 'General'
-            tag_name = tags[1] if len(tags) > 1 else (tags[0] if tags else '-')
-
-            # Simulated success rate
-            success_rate = f"{30 + (hash(codigo) % 25):.1f}%"
-
-            # Create items with styling
-            id_item = QTableWidgetItem(codigo)
-            id_item.setForeground(Qt.GlobalColor.blue)
-
-            self.hard_questions_table.setItem(row_idx, 0, id_item)
-            self.hard_questions_table.setItem(row_idx, 1, QTableWidgetItem(topic))
-
-            tag_item = QTableWidgetItem(tag_name)
-            self.hard_questions_table.setItem(row_idx, 2, tag_item)
-
-            self.hard_questions_table.setItem(row_idx, 3, QTableWidgetItem(success_rate))
-            self.hard_questions_table.setItem(row_idx, 4, QTableWidgetItem("👁"))
-
     def _show_empty_state(self):
         """Show empty state when no data is available."""
         self.total_card.set_value("0")
         self.new_card.set_value("0")
-        self.success_card.set_value("-")
         self.time_card.set_value("-")
 
     def refresh_data(self):
