@@ -1,13 +1,12 @@
 # src/views/components/question/editor_tab.py
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QRadioButton, QButtonGroup, QScrollArea, QSizePolicy
+    QRadioButton, QButtonGroup, QScrollArea, QSizePolicy, QPushButton
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon, QPixmap, QIntValidator
 from src.views.design.constants import Color, Spacing, Typography, Dimensions
 from src.views.components.common.inputs import TextInput, LatexTextArea
-from src.views.components.common.buttons import IconButton
 
 class EditorTab(QWidget):
     """
@@ -73,9 +72,9 @@ class EditorTab(QWidget):
         self.scroll_layout.addWidget(QLabel("Enunciado da Questão:", self))
         self.statement_input = LatexTextArea(placeholder_text="Digite o enunciado da questão (suporta LaTeX)", parent=self)
         self.scroll_layout.addWidget(self.statement_input)
-        self.add_image_statement_button = IconButton(icon_path="images/icons/add_image.png", parent=self)
-        self.add_image_statement_button.setText("Adicionar Imagem ao Enunciado")
-        self.add_image_statement_button.setFixedSize(QSize(200, 30))
+        self.add_image_statement_button = QPushButton("+ Imagem", self)
+        self.add_image_statement_button.setToolTip("Adicionar imagem ao enunciado")
+        self.add_image_statement_button.setFixedSize(QSize(100, 30))
         self.add_image_statement_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Color.LIGHT_BLUE_BG_2};
@@ -98,12 +97,15 @@ class EditorTab(QWidget):
         self.alternatives_layout = QVBoxLayout(self.alternatives_section)
         self.alternatives_layout.setSpacing(Spacing.SM)
         self.alternatives_widgets = []
+        self.alternatives_button_group = QButtonGroup(self)  # Grupo para exclusão mútua
 
         self.scroll_layout.addWidget(QLabel("Alternativas (para questões objetivas):", self))
         for i, char in enumerate("ABCDE"):
             alternative_widget = self._create_alternative_input(char)
             self.alternatives_layout.addWidget(alternative_widget)
             self.alternatives_widgets.append(alternative_widget)
+            # Adicionar radio button ao grupo para exclusão mútua
+            self.alternatives_button_group.addButton(alternative_widget.radio_button, i)
         self.scroll_layout.addWidget(self.alternatives_section)
 
         # --- Answer Key (Discursive) ---
@@ -114,9 +116,9 @@ class EditorTab(QWidget):
         self.scroll_layout.addWidget(QLabel("Chave de Resposta (para questões discursivas):", self))
         self.answer_key_input = LatexTextArea(placeholder_text="Digite a chave de resposta (suporta LaTeX)", parent=self)
         self.answer_key_layout.addWidget(self.answer_key_input)
-        self.add_image_answer_button = IconButton(icon_path="images/icons/add_image.png", parent=self)
-        self.add_image_answer_button.setText("Adicionar Imagem à Resposta")
-        self.add_image_answer_button.setFixedSize(QSize(200, 30))
+        self.add_image_answer_button = QPushButton("+ Imagem", self)
+        self.add_image_answer_button.setToolTip("Adicionar imagem à resposta")
+        self.add_image_answer_button.setFixedSize(QSize(100, 30))
         self.add_image_answer_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Color.LIGHT_BLUE_BG_2};
@@ -171,13 +173,27 @@ class EditorTab(QWidget):
         text_input = TextInput(placeholder_text=f"Alternativa {char}", parent=container)
         layout.addWidget(text_input)
 
-        add_image_button = IconButton(icon_path="images/icons/add_image.png", parent=container)
+        add_image_button = QPushButton("IMG", container)
         add_image_button.setToolTip(f"Adicionar imagem à alternativa {char}")
-        add_image_button.setFixedSize(QSize(30,30))
+        add_image_button.setMaximumWidth(40)
+        add_image_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Color.LIGHT_BLUE_BG_2};
+                color: {Color.PRIMARY_BLUE};
+                border: 1px solid {Color.LIGHT_BLUE_BORDER};
+                border-radius: {Dimensions.BORDER_RADIUS_SM};
+                padding: 2px;
+                font-size: {Typography.FONT_SIZE_SM};
+            }}
+            QPushButton:hover {{
+                background-color: {Color.LIGHT_BLUE_BG_1};
+            }}
+        """)
         layout.addWidget(add_image_button)
 
         container.text_input = text_input # Attach for easier access
         container.radio_button = radio_button # Attach for easier access
+        container.add_image_button = add_image_button # Attach for easier access
         return container
 
     def _on_question_type_toggled(self, radio_button):

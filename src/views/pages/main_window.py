@@ -13,6 +13,8 @@ from src.views.pages.question_bank_page import QuestionBankPage
 from src.views.pages.exam_list_page import ExamListPage
 from src.views.pages.taxonomy_page import TaxonomyPage
 from src.views.pages.question_editor_page import QuestionEditorPage
+from src.controllers.adapters import criar_questao_controller
+from src.application.dtos import QuestaoCreateDTO, AlternativaDTO
 
 
 class MainWindow(QMainWindow):
@@ -97,6 +99,14 @@ class MainWindow(QMainWindow):
         self.content_stacked_widget.addWidget(self.question_editor_page)
         self.pages[PageEnum.QUESTION_EDITOR] = self.question_editor_page
 
+        # Conectar sinais do editor de questões
+        self.question_editor_page.cancel_requested.connect(self._on_question_editor_cancel)
+        self.question_editor_page.back_to_questions_requested.connect(self._on_question_editor_cancel)
+        self.question_editor_page.save_requested.connect(self._on_question_save_requested)
+
+        # Inicializar controller de questões
+        self.questao_controller = criar_questao_controller()
+
 
     def _set_current_page(self, page_enum: PageEnum):
         """Switches the displayed page and updates UI components."""
@@ -140,6 +150,49 @@ class MainWindow(QMainWindow):
         self.toast.show_message(f"Tag '{tag_uuid}' filter changed: {'checked' if is_checked else 'unchecked'}", "info")
         # Here, actual filtering logic would be called for the current page
 
+    def _on_question_editor_cancel(self):
+        """Handler para cancelar/voltar do editor de questões."""
+        self._set_current_page(PageEnum.QUESTION_BANK)
+
+    def _on_question_save_requested(self, question_data: dict):
+        """Handler para salvar questão do editor."""
+        try:
+            # Converter dados do editor para o formato do DTO
+            tipo = 'OBJETIVA' if question_data.get('question_type') == 'objective' else 'DISCURSIVA'
+
+            alternativas_dto = []
+            if tipo == 'OBJETIVA':
+                for i, alt in enumerate(question_data.get('alternatives', [])):
+                    letra = chr(ord('A') + i)
+                    alternativas_dto.append(AlternativaDTO(
+                        letra=letra,
+                        texto=alt.get('text', ''),
+                        correta=alt.get('is_correct', False)
+                    ))
+
+            dto = QuestaoCreateDTO(
+                enunciado=question_data.get('statement', ''),
+                tipo=tipo,
+                ano=int(question_data.get('academic_year', 2026)) if question_data.get('academic_year') else 2026,
+                alternativas=alternativas_dto,
+                tags=question_data.get('tags', []),
+                observacoes=None
+            )
+
+            resultado = self.questao_controller.criar_questao_completa(dto)
+
+            if resultado:
+                codigo = resultado.get('codigo') if isinstance(resultado, dict) else resultado
+                self.toast.show_message(f"Questão salva com sucesso! Código: {codigo}", "success")
+                self._set_current_page(PageEnum.QUESTION_BANK)
+                # Atualizar lista de questões
+                if hasattr(self.question_bank_page, 'refresh'):
+                    self.question_bank_page.refresh()
+            else:
+                self.toast.show_message("Erro ao salvar a questão.", "error")
+
+        except Exception as e:
+            self.toast.show_message(f"Erro ao salvar: {str(e)}", "error")
 
     # def _update_sidebar_visibility(self, page_enum: PageEnum):
     #     """Shows or hides the sidebar based on the current page."""

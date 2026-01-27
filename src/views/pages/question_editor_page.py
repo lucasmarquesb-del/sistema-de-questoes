@@ -1,10 +1,12 @@
 # src/views/pages/question_editor_page.py
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QStackedWidget, QSpacerItem, QSizePolicy, QFrame
+    QTabWidget, QStackedWidget, QSpacerItem, QSizePolicy, QFrame,
+    QCompleter
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon
+from src.controllers.adapters import criar_tag_controller
 from src.views.design.constants import Color, Spacing, Typography, Dimensions, Text
 from src.views.design.enums import ActionEnum, PageEnum
 from src.views.components.common.buttons import PrimaryButton, SecondaryButton, IconButton
@@ -150,6 +152,7 @@ class QuestionEditorPage(QWidget):
 
         self._connect_signals()
         self._update_save_button_state() # Initial state check
+        self._setup_origin_autocomplete()
 
     def _connect_signals(self):
         self.editor_tab.content_changed.connect(self._update_question_data)
@@ -158,6 +161,20 @@ class QuestionEditorPage(QWidget):
         self.tags_tab.tags_changed.connect(self._on_tags_changed)
         self.tags_tab.tags_changed.connect(self._update_save_button_state)
         self.tab_widget.currentChanged.connect(self._on_tab_changed) # Update preview when switching to preview tab
+
+        # Conectar botões de adicionar imagem
+        self.editor_tab.add_image_statement_button.clicked.connect(
+            lambda: self._insert_image(self.editor_tab.statement_input)
+        )
+        self.editor_tab.add_image_answer_button.clicked.connect(
+            lambda: self._insert_image(self.editor_tab.answer_key_input)
+        )
+        # Conectar botões de imagem nas alternativas
+        for alt_widget in self.editor_tab.alternatives_widgets:
+            if hasattr(alt_widget, 'add_image_button'):
+                alt_widget.add_image_button.clicked.connect(
+                    lambda checked, ti=alt_widget.text_input: self._insert_image_to_line_edit(ti)
+                )
 
     def _update_question_data(self):
         # Gather data from editor tab
@@ -214,6 +231,46 @@ class QuestionEditorPage(QWidget):
     def _on_tab_changed(self, index: int):
         if self.tab_widget.widget(index) == self.preview_tab:
             self._update_preview()
+
+    def _setup_origin_autocomplete(self):
+        """Configura auto-complete para o campo de origem/fonte."""
+        try:
+            tag_controller = criar_tag_controller()
+            vestibulares = tag_controller.listar_vestibulares()
+            nomes = [vest['nome'] for vest in vestibulares]
+            completer = QCompleter(nomes, self)
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            self.editor_tab.origin_input.setCompleter(completer)
+        except Exception as e:
+            print(f"Erro ao configurar auto-complete de origem: {e}")
+
+    def _insert_image(self, text_area):
+        """Insere uma imagem em um QTextEdit/LatexTextArea."""
+        from src.views.components.dialogs.image_insert_dialog import ImageInsertDialog
+        dialog = ImageInsertDialog(self)
+        if dialog.exec():
+            caminho = dialog.get_image_path()
+            escala = dialog.get_scale()
+            if caminho:
+                placeholder = f"[IMG:{caminho}:{escala}]"
+                cursor = text_area.textCursor()
+                cursor.insertText(placeholder)
+                text_area.setTextCursor(cursor)
+
+    def _insert_image_to_line_edit(self, line_edit):
+        """Insere uma imagem em um QLineEdit/TextInput."""
+        from src.views.components.dialogs.image_insert_dialog import ImageInsertDialog
+        dialog = ImageInsertDialog(self)
+        if dialog.exec():
+            caminho = dialog.get_image_path()
+            escala = dialog.get_scale()
+            if caminho:
+                placeholder = f"[IMG:{caminho}:{escala}]"
+                texto_atual = line_edit.text()
+                cursor_pos = line_edit.cursorPosition()
+                novo_texto = texto_atual[:cursor_pos] + placeholder + texto_atual[cursor_pos:]
+                line_edit.setText(novo_texto)
 
 
 if __name__ == '__main__':
