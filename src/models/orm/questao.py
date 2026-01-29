@@ -5,7 +5,10 @@ from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Numeric
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .base import BaseModel
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from src.models.orm.nivel_escolar import NivelEscolar
 
 class Questao(BaseModel):
     """
@@ -45,7 +48,12 @@ class Questao(BaseModel):
     # Relationships N:N
     tags = relationship("Tag", secondary="questao_tag", back_populates="questoes")
     listas = relationship("Lista", secondary="lista_questao", back_populates="questoes")
-
+    # Relacionamento N:N com niveis escolares
+    niveis_escolares = relationship(
+        "NivelEscolar",
+        secondary="questao_nivel",
+        back_populates="questoes"
+    )
     # Relationship para versões
     versoes = relationship(
         "Questao",
@@ -58,6 +66,20 @@ class Questao(BaseModel):
     def __repr__(self):
         return f"<Questao(codigo={self.codigo}, titulo={self.titulo})>"
 
+    def to_dict(self) -> dict:
+        """Converte o model para dicionario."""
+        return {
+            # ... seus campos existentes ...
+            "uuid": self.uuid,
+            "codigo": self.codigo,
+            "titulo": self.titulo,
+            "enunciado": self.enunciado,
+            # ... outros campos ...
+
+            # ADICIONE ESTES CAMPOS:
+            "niveis_escolares": [n.to_dict() for n in self.niveis_escolares],
+            "codigos_niveis": self.codigos_niveis,
+        }
     @classmethod
     def buscar_por_codigo(cls, session, codigo: str):
         """Busca questão por código"""
@@ -171,3 +193,42 @@ class Questao(BaseModel):
                 if alt.uuid == self.resposta.uuid_alternativa_correta:
                     return alt
         return None
+
+    def adicionar_nivel(self, nivel: "NivelEscolar") -> None:
+        """
+        Adiciona um nivel escolar a questao.
+
+        Args:
+            nivel: NivelEscolar a adicionar
+        """
+        if nivel not in self.niveis_escolares:
+            self.niveis_escolares.append(nivel)
+
+    def remover_nivel(self, nivel: "NivelEscolar") -> None:
+        """
+        Remove um nivel escolar da questao.
+
+        Args:
+            nivel: NivelEscolar a remover
+        """
+        if nivel in self.niveis_escolares:
+            self.niveis_escolares.remove(nivel)
+
+    def definir_niveis(self, niveis: List["NivelEscolar"]) -> None:
+        """
+        Define os niveis escolares da questao (substitui os existentes).
+
+        Args:
+            niveis: Lista de NivelEscolar
+        """
+        self.niveis_escolares = niveis
+
+    @property
+    def codigos_niveis(self) -> List[str]:
+        """Retorna lista de codigos dos niveis (EF1, EM, etc.)."""
+        return [n.codigo for n in self.niveis_escolares]
+
+    @property
+    def nomes_niveis(self) -> List[str]:
+        """Retorna lista de nomes dos niveis."""
+        return [n.nome for n in self.niveis_escolares]

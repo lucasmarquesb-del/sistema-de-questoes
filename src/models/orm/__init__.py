@@ -16,6 +16,10 @@ from .questao_tag import QuestaoTag
 from .lista_questao import ListaQuestao
 from .questao_versao import QuestaoVersao
 from .codigo_generator import CodigoGenerator
+from .disciplina import Disciplina
+from .nivel_escolar import NivelEscolar
+from .questao_nivel import questao_nivel
+
 
 __all__ = [
     'Base',
@@ -34,4 +38,7 @@ __all__ = [
     'ListaQuestao',
     'QuestaoVersao',
     'CodigoGenerator',
+    "Disciplina",
+    "NivelEscolar",
+    "questao_nivel",
 ]

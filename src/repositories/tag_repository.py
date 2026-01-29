@@ -156,3 +156,187 @@ class TagRepository(BaseRepository[Tag]):
 
         return max(numeros) if numeros else 0
 
+    def listar_por_disciplina(
+            self,
+            uuid_disciplina: str,
+            apenas_ativas: bool = True
+    ) -> List["Tag"]:
+        """
+        Lista todas as tags de uma disciplina especifica.
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+            apenas_ativas: Se True, retorna apenas tags ativas
+
+        Returns:
+            Lista de Tag ordenada por numeracao
+        """
+        from src.models.orm.tag import Tag
+
+        query = self.session.query(Tag).filter(
+            Tag.uuid_disciplina == uuid_disciplina
+        )
+
+        if apenas_ativas:
+            query = query.filter(Tag.ativo == True)
+
+        return query.order_by(Tag.numeracao).all()
+
+    def listar_raiz_por_disciplina(
+            self,
+            uuid_disciplina: str,
+            apenas_ativas: bool = True
+    ) -> List["Tag"]:
+        """
+        Lista as tags raiz (sem pai) de uma disciplina.
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+            apenas_ativas: Se True, retorna apenas tags ativas
+
+        Returns:
+            Lista de Tag de primeiro nivel
+        """
+        from src.models.orm.tag import Tag
+
+        query = self.session.query(Tag).filter(
+            Tag.uuid_disciplina == uuid_disciplina,
+            Tag.uuid_tag_pai == None
+        )
+
+        if apenas_ativas:
+            query = query.filter(Tag.ativo == True)
+
+        return query.order_by(Tag.ordem, Tag.numeracao).all()
+
+    def criar_para_disciplina(
+            self,
+            uuid_disciplina: str,
+            dados: dict
+    ) -> Optional["Tag"]:
+        """
+        Cria uma nova tag associada a uma disciplina.
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+            dados: Dicionario com os dados da tag
+                   {numeracao, nome, nivel?, uuid_tag_pai?, ordem?, descricao?}
+
+        Returns:
+            Tag criada ou None se falhar
+        """
+        import uuid
+        from datetime import datetime
+        from src.models.orm.tag import Tag
+
+        try:
+            tag = Tag(
+                uuid=str(uuid.uuid4()),
+                uuid_disciplina=uuid_disciplina,
+                uuid_tag_pai=dados.get("uuid_tag_pai"),
+                numeracao=dados["numeracao"],
+                nome=dados["nome"],
+                nivel=dados.get("nivel", 1),
+                ordem=dados.get("ordem", 0),
+                ativo=dados.get("ativo", True),
+                data_criacao=datetime.now(),
+            )
+
+            self.session.add(tag)
+            self.session.commit()
+
+            logger.info(f"Tag criada: {tag.numeracao} - {tag.nome} (disciplina {uuid_disciplina[:8]}...)")
+            return tag
+
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"Erro ao criar tag: {e}")
+            return None
+
+    def mover_para_disciplina(
+            self,
+            uuid_tag: str,
+            uuid_disciplina: str
+    ) -> bool:
+        """
+        Move uma tag (e seus filhos) para outra disciplina.
+
+        Args:
+            uuid_tag: UUID da tag a mover
+            uuid_disciplina: UUID da disciplina destino
+
+        Returns:
+            True se movido com sucesso
+        """
+        from src.models.orm.tag import Tag
+
+        try:
+            tag = self.buscar_por_uuid(uuid_tag)
+            if not tag:
+                return False
+
+            # Move a tag
+            tag.uuid_disciplina = uuid_disciplina
+
+            # Move todos os descendentes (filhos, netos, etc.)
+            def mover_filhos(tag_pai):
+                for filho in tag_pai.filhos:
+                    filho.uuid_disciplina = uuid_disciplina
+                    mover_filhos(filho)
+
+            mover_filhos(tag)
+
+            self.session.commit()
+            logger.info(f"Tag {uuid_tag[:8]}... movida para disciplina {uuid_disciplina[:8]}...")
+            return True
+
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"Erro ao mover tag: {e}")
+            return False
+
+    def buscar_arvore_disciplina(self, uuid_disciplina: str) -> List[dict]:
+        """
+        Retorna a arvore completa de tags de uma disciplina.
+
+        Formato para exibicao em TreeView.
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+
+        Returns:
+            Lista de dicionarios com estrutura hierarquica
+        """
+
+        def construir_arvore(tag) -> dict:
+            filhos_ativos = [f for f in tag.filhos if f.ativo]
+            filhos_ativos.sort(key=lambda x: (x.ordem, x.numeracao))
+
+            return {
+                "uuid": tag.uuid,
+                "numeracao": tag.numeracao,
+                "nome": tag.nome,
+                "nivel": tag.nivel,
+                "texto": f"{tag.numeracao} - {tag.nome}",
+                "filhos": [construir_arvore(filho) for filho in filhos_ativos]
+            }
+
+        tags_raiz = self.listar_raiz_por_disciplina(uuid_disciplina)
+        return [construir_arvore(tag) for tag in tags_raiz]
+
+    def contar_por_disciplina(self, uuid_disciplina: str) -> int:
+        """
+        Conta quantas tags pertencem a uma disciplina.
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+
+        Returns:
+            Quantidade de tags
+        """
+        from src.models.orm.tag import Tag
+
+        return self.session.query(Tag).filter(
+            Tag.uuid_disciplina == uuid_disciplina,
+            Tag.ativo == True
+        ).count()

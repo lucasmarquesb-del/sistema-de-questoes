@@ -5,6 +5,10 @@ from sqlalchemy import Column, String, Integer, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
+# Se estiver usando TYPE_CHECKING:
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from src.models.orm.disciplina import Disciplina
 
 class Tag(BaseModel):
     """
@@ -17,10 +21,12 @@ class Tag(BaseModel):
     nivel = Column(Integer, nullable=False)
     uuid_tag_pai = Column(Text, ForeignKey('tag.uuid'), nullable=True)
     ordem = Column(Integer, nullable=False, default=0)
+    uuid_disciplina = Column(String(36), ForeignKey('disciplina.uuid'), nullable=True)
 
     # Self-referential relationship
     tag_pai = relationship("Tag", remote_side="Tag.uuid", back_populates="tags_filhas")
     tags_filhas = relationship("Tag", back_populates="tag_pai", cascade="all, delete-orphan")
+    disciplina = relationship("Disciplina", back_populates="tags")
 
     # Relationship com questões (N:N via questao_tag)
     questoes = relationship("Questao", secondary="questao_tag", back_populates="tags")
@@ -76,3 +82,37 @@ class Tag(BaseModel):
                 resultado.append(filha)
                 resultado.extend(filha.obter_filhas_recursivo())
         return resultado
+
+    def to_dict(self) -> dict:
+        """Converte o model para dicionario."""
+        return {
+            "uuid": self.uuid,
+            "uuid_disciplina": self.uuid_disciplina,
+            "uuid_tag_pai": self.uuid_tag_pai,
+            "numeracao": self.numeracao,
+            "nome": self.nome,
+            "nivel": self.nivel,
+            "ordem": self.ordem,
+            "ativo": self.ativo,
+            "data_criacao": self.data_criacao.isoformat() if self.data_criacao else None,
+            # Dados da disciplina (se carregada)
+            "disciplina_codigo": self.disciplina.codigo if self.disciplina else None,
+            "disciplina_nome": self.disciplina.nome if self.disciplina else None,
+        }
+
+    @property
+    def caminho_completo(self) -> str:
+        """Retorna o caminho completo da tag (ex: 'Numeros > Naturais > Primos')."""
+        partes = [self.nome]
+        tag_atual = self.pai  # Assumindo que voce tem um relacionamento 'pai'
+
+        while tag_atual:
+            partes.insert(0, tag_atual.nome)
+            tag_atual = tag_atual.pai if hasattr(tag_atual, 'pai') else None
+
+        return " > ".join(partes)
+
+    @property
+    def eh_raiz(self) -> bool:
+        """Retorna True se e uma tag raiz (sem pai)."""
+        return self.uuid_tag_pai is None
