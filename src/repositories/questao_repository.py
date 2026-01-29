@@ -308,7 +308,16 @@ class QuestaoRepository(BaseRepository[Questao]):
         uuid_fonte = None
         if sigla_fonte:
             fonte = self.session.query(FonteQuestao).filter_by(sigla=sigla_fonte).first()
-            uuid_fonte = fonte.uuid if fonte else None
+            if not fonte:
+                # Criar fonte automaticamente se nao existir
+                fonte = FonteQuestao(
+                    sigla=sigla_fonte.upper(),
+                    nome_completo=sigla_fonte.upper(),
+                    ativo=True
+                )
+                self.session.add(fonte)
+                self.session.flush()
+            uuid_fonte = fonte.uuid
 
         uuid_ano = None
         if ano:

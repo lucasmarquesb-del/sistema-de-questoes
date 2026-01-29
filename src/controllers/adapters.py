@@ -288,20 +288,21 @@ class TagControllerAdapter:
             return tags[tag_id - 1]
         return None
 
-    def criar_tag(self, dto, tipo: str = 'CONTEUDO'):
+    def criar_tag(self, dto, tipo: str = 'CONTEUDO', uuid_disciplina: str = None):
         """
         Cria uma nova tag a partir de DTO
 
         Args:
             dto: TagCreateDTO com nome e id_tag_pai (opcional)
             tipo: Tipo da tag raiz - 'CONTEUDO', 'VESTIBULAR' ou 'SERIE'
+            uuid_disciplina: UUID da disciplina (obrigatorio para tags de conteudo)
 
         Returns:
             Dict com dados da tag criada
         """
         # dto.id_tag_pai pode ser um UUID string ou None
         uuid_pai = dto.id_tag_pai if isinstance(dto.id_tag_pai, str) else None
-        return TagControllerORM.criar_tag(dto.nome, uuid_pai, tipo)
+        return TagControllerORM.criar_tag(dto.nome, uuid_pai, tipo, uuid_disciplina)
 
     def atualizar_tag(self, dto):
         """
@@ -376,6 +377,14 @@ class TagControllerAdapter:
     def obter_arvore_tags_inativas(self):
         """Retorna árvore hierárquica de tags inativas"""
         return TagControllerORM.obter_arvore_tags_inativas()
+
+    def listar_disciplinas(self):
+        """Lista todas as disciplinas ativas"""
+        return TagControllerORM.listar_disciplinas()
+
+    def listar_tags_por_disciplina(self, uuid_disciplina):
+        """Lista tags de conteúdo de uma disciplina específica"""
+        return TagControllerORM.listar_tags_por_disciplina(uuid_disciplina)
 
 
 # Factory functions para manter compatibilidade com código existente

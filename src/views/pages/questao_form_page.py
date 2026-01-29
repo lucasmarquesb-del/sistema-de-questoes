@@ -7,19 +7,19 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QComboBox, QScrollArea, QGroupBox, QRadioButton,
     QButtonGroup, QSpinBox, QTextEdit, QTabWidget, QWidget,
-    QCheckBox, QMessageBox, QInputDialog, QCompleter
+    QCheckBox, QMessageBox, QInputDialog, QCompleter, QListWidget,
+    QListWidgetItem, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 import logging
 
 from src.views.components.forms.latex_editor import LatexEditor
-from src.views.components.forms.tag_tree import TagTreeWidget
 from src.views.components.forms.difficulty_selector import DifficultySelector
 from src.views.pages.questao_preview_page import QuestaoPreview
 from src.views.components.dialogs.image_insert_dialog import ImageInsertDialog
 from src.controllers.adapters import criar_questao_controller
 from src.controllers.adapters import criar_tag_controller
-from src.application.dtos import QuestaoCreateDTO, QuestaoUpdateDTO, AlternativaDTO, TagCreateDTO
+from src.application.dtos import QuestaoCreateDTO, QuestaoUpdateDTO, AlternativaDTO
 from src.utils import ErrorHandler
 
 logger = logging.getLogger(__name__)
@@ -157,16 +157,35 @@ class QuestaoFormPage(QDialog):
         # Tags
         tags_group = QGroupBox("Tags de Conteudo")
         tags_layout = QVBoxLayout(tags_group)
-        tags_header_layout = QHBoxLayout()
-        tags_header_layout.addWidget(QLabel("Selecione as tags que classificam esta questao:"))
-        tags_header_layout.addStretch()
-        btn_criar_tag = QPushButton("+ Criar Tag")
-        btn_criar_tag.setToolTip("Criar uma nova tag de conteudo")
-        btn_criar_tag.clicked.connect(self.criar_tag_conteudo)
-        tags_header_layout.addWidget(btn_criar_tag)
-        tags_layout.addLayout(tags_header_layout)
-        self.tag_tree_widget = TagTreeWidget()
-        tags_layout.addWidget(self.tag_tree_widget)
+
+        # Dropdown de Disciplina
+        disciplina_layout = QHBoxLayout()
+        disciplina_layout.addWidget(QLabel("Disciplina:"))
+        self.disciplina_combo = QComboBox()
+        self.disciplina_combo.addItem("Selecione a disciplina...", None)
+        self.disciplina_combo.setMinimumWidth(250)
+        self.disciplina_combo.currentIndexChanged.connect(self.on_disciplina_changed)
+        disciplina_layout.addWidget(self.disciplina_combo)
+        disciplina_layout.addStretch()
+        tags_layout.addLayout(disciplina_layout)
+
+        # Dropdown de Tags (multiselect via QListWidget)
+        tags_select_layout = QVBoxLayout()
+        tags_select_layout.addWidget(QLabel("Conteudos/Tags (selecione um ou mais):"))
+        self.tags_list = QListWidget()
+        self.tags_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        self.tags_list.setMinimumHeight(150)
+        self.tags_list.setMaximumHeight(200)
+        tags_select_layout.addWidget(self.tags_list)
+        tags_layout.addLayout(tags_select_layout)
+
+        # Tags selecionadas (exibição)
+        self.selected_tags_label = QLabel("Tags selecionadas: Nenhuma")
+        self.selected_tags_label.setWordWrap(True)
+        self.selected_tags_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        tags_layout.addWidget(self.selected_tags_label)
+        self.tags_list.itemSelectionChanged.connect(self.on_tags_selection_changed)
+
         scroll_layout.addWidget(tags_group)
 
         scroll.setWidget(scroll_widget)
@@ -254,12 +273,42 @@ class QuestaoFormPage(QDialog):
             ErrorHandler.handle_exception(self, e, "Erro ao carregar series")
 
     def load_tags_tree(self):
-        """Carrega a arvore de tags de conteudo usando o TagController."""
+        """Carrega as disciplinas no dropdown."""
         try:
-            tags_arvore = self.tag_controller.obter_arvore_conteudos()
-            self.tag_tree_widget.load_tags(tags_arvore)
+            disciplinas = self.tag_controller.listar_disciplinas()
+            for disc in disciplinas:
+                self.disciplina_combo.addItem(disc['texto'], disc['uuid'])
         except Exception as e:
-            ErrorHandler.handle_exception(self, e, "Erro ao carregar as tags")
+            ErrorHandler.handle_exception(self, e, "Erro ao carregar disciplinas")
+
+    def on_disciplina_changed(self, index):
+        """Atualiza a lista de tags quando a disciplina muda."""
+        self.tags_list.clear()
+        uuid_disciplina = self.disciplina_combo.currentData()
+
+        if not uuid_disciplina:
+            return
+
+        try:
+            tags = self.tag_controller.listar_tags_por_disciplina(uuid_disciplina)
+            for tag in tags:
+                item = QListWidgetItem(tag['caminho_completo'] or tag['nome'])
+                item.setData(Qt.ItemDataRole.UserRole, tag['uuid'])
+                item.setData(Qt.ItemDataRole.UserRole + 1, tag['nome'])
+                self.tags_list.addItem(item)
+        except Exception as e:
+            ErrorHandler.handle_exception(self, e, "Erro ao carregar tags da disciplina")
+
+    def on_tags_selection_changed(self):
+        """Atualiza o label com as tags selecionadas."""
+        selected_items = self.tags_list.selectedItems()
+        if selected_items:
+            nomes = [item.data(Qt.ItemDataRole.UserRole + 1) for item in selected_items]
+            self.selected_tags_label.setText(f"Tags selecionadas: {', '.join(nomes)}")
+            self.selected_tags_label.setStyleSheet("color: #27ae60; font-weight: bold;")
+        else:
+            self.selected_tags_label.setText("Tags selecionadas: Nenhuma")
+            self.selected_tags_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
 
     def load_questao_data(self, questao_id):
         """Carrega os dados de uma questao existente para edicao."""
@@ -302,19 +351,23 @@ class QuestaoFormPage(QDialog):
             tags = getattr(dto, 'tags', [])
             if tags:
                 tag_conteudo_uuids = []
+                uuid_disciplina_encontrada = None
                 for tag in tags:
                     tag_uuid = None
                     tag_numeracao = None
                     tag_nome = None
+                    tag_disciplina = None
 
                     if hasattr(tag, 'uuid'):
                         tag_uuid = tag.uuid
                         tag_numeracao = getattr(tag, 'numeracao', '') or ''
                         tag_nome = getattr(tag, 'nome', '') or ''
+                        tag_disciplina = getattr(tag, 'uuid_disciplina', None)
                     elif isinstance(tag, dict):
                         tag_uuid = tag.get('uuid')
                         tag_numeracao = tag.get('numeracao', '') or ''
                         tag_nome = tag.get('nome', '') or ''
+                        tag_disciplina = tag.get('uuid_disciplina')
 
                     if not tag_uuid:
                         continue
@@ -328,8 +381,20 @@ class QuestaoFormPage(QDialog):
                             self.serie_combo.setCurrentIndex(idx)
                     else:
                         tag_conteudo_uuids.append(tag_uuid)
+                        if tag_disciplina and not uuid_disciplina_encontrada:
+                            uuid_disciplina_encontrada = tag_disciplina
 
-                self.tag_tree_widget.set_selected_tags(tag_conteudo_uuids)
+                # Selecionar disciplina se encontrada
+                if uuid_disciplina_encontrada:
+                    idx = self.disciplina_combo.findData(uuid_disciplina_encontrada)
+                    if idx >= 0:
+                        self.disciplina_combo.setCurrentIndex(idx)
+
+                # Selecionar as tags na lista
+                for i in range(self.tags_list.count()):
+                    item = self.tags_list.item(i)
+                    if item.data(Qt.ItemDataRole.UserRole) in tag_conteudo_uuids:
+                        item.setSelected(True)
 
         except Exception as e:
             ErrorHandler.handle_exception(self, e, f"Erro ao carregar dados da questao {questao_id}")
@@ -337,7 +402,7 @@ class QuestaoFormPage(QDialog):
 
     def get_form_data(self) -> dict:
         """Coleta e retorna os dados do formulario em um dicionario."""
-        tags = self.tag_tree_widget.get_selected_tag_ids()
+        tags = [item.data(Qt.ItemDataRole.UserRole) for item in self.tags_list.selectedItems()]
 
         fonte_uuid = self._obter_ou_criar_fonte_tag()
         if fonte_uuid:
@@ -372,6 +437,8 @@ class QuestaoFormPage(QDialog):
 
     def _obter_ou_criar_fonte_tag(self) -> str:
         """Obtem o UUID da tag de fonte, criando-a se nao existir."""
+        from src.application.dtos import TagCreateDTO
+
         fonte_texto = self.fonte_input.text().strip()
         if not fonte_texto:
             return None
@@ -402,7 +469,7 @@ class QuestaoFormPage(QDialog):
         if not self.fonte_input.text().strip():
             return False, "E necessario informar uma fonte/banca para a questao."
 
-        tags_conteudo = self.tag_tree_widget.get_selected_content_tags()
+        tags_conteudo = self.tags_list.selectedItems()
         if not tags_conteudo:
             return False, "E necessario selecionar pelo menos uma tag de conteudo (assunto)."
 
@@ -439,7 +506,7 @@ class QuestaoFormPage(QDialog):
 
         titulo = form_data.get('titulo')
         if not titulo or not titulo.strip():
-            content_tags = self.tag_tree_widget.get_selected_content_tags_with_names()
+            content_tags = [(item.data(Qt.ItemDataRole.UserRole), item.data(Qt.ItemDataRole.UserRole + 1)) for item in self.tags_list.selectedItems()]
             if len(content_tags) > 1:
                 nomes = [nome for _, nome in content_tags]
                 escolhido, ok = QInputDialog.getItem(
@@ -488,114 +555,6 @@ class QuestaoFormPage(QDialog):
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao salvar questao")
 
-    def criar_tag_conteudo(self):
-        """Cria uma nova tag de conteudo, permitindo escolher se e raiz ou sub-tag."""
-        opcoes = ["Tag Raiz (nova categoria)", "Sub-tag (filha de outra tag)"]
-        opcao_escolhida, ok = QInputDialog.getItem(
-            self, "Nova Tag de Conteudo",
-            "Selecione o tipo de criacao:",
-            opcoes, 0, False
-        )
-        if not ok:
-            return
-
-        if opcao_escolhida == opcoes[0]:
-            self._criar_tag_raiz()
-        else:
-            self._criar_subtag()
-
-    def _criar_tag_raiz(self):
-        """Cria uma nova tag raiz de conteudo."""
-        nome, ok = QInputDialog.getText(
-            self, "Nova Tag Raiz",
-            "Nome da nova tag de conteudo:"
-        )
-        if ok and nome.strip():
-            self._executar_criacao_tag(nome.strip(), uuid_pai=None)
-
-    def _criar_subtag(self):
-        """Cria uma sub-tag, permitindo escolher a tag pai."""
-        tags_disponiveis = self._obter_tags_para_pai()
-
-        if not tags_disponiveis:
-            QMessageBox.information(
-                self, "Aviso",
-                "Nao ha tags de conteudo disponiveis para criar sub-tags.\n"
-                "Crie primeiro uma tag raiz."
-            )
-            return
-
-        opcoes = [f"{tag['caminho']}" for tag in tags_disponiveis]
-
-        pai_escolhido, ok = QInputDialog.getItem(
-            self, "Selecionar Tag Pai",
-            "Selecione a tag pai para a nova sub-tag:",
-            opcoes, 0, False
-        )
-        if not ok:
-            return
-
-        idx = opcoes.index(pai_escolhido)
-        uuid_pai = tags_disponiveis[idx]['uuid']
-
-        if not self.tag_controller.pode_criar_subtag(uuid_pai):
-            QMessageBox.warning(
-                self, "Aviso",
-                "Esta tag nao permite a criacao de sub-tags."
-            )
-            return
-
-        nome, ok = QInputDialog.getText(
-            self, "Nova Sub-tag",
-            f"Nome da nova sub-tag de '{pai_escolhido}':"
-        )
-        if ok and nome.strip():
-            self._executar_criacao_tag(nome.strip(), uuid_pai=uuid_pai)
-
-    def _obter_tags_para_pai(self):
-        """Retorna lista de tags de conteudo que podem ser pai."""
-        resultado = []
-        tree = self.tag_tree_widget.tree
-
-        def _processar_item(item, caminho_pai=""):
-            tag_uuid = item.data(0, Qt.ItemDataRole.UserRole)
-            numeracao = item.data(0, Qt.ItemDataRole.UserRole + 1) or ""
-            nome = item.text(0)
-
-            if not numeracao or not numeracao[0].isdigit():
-                return
-
-            caminho = f"{caminho_pai} > {nome}" if caminho_pai else nome
-
-            resultado.append({
-                'uuid': tag_uuid,
-                'nome': nome,
-                'numeracao': numeracao,
-                'caminho': caminho
-            })
-
-            for i in range(item.childCount()):
-                _processar_item(item.child(i), caminho)
-
-        for i in range(tree.topLevelItemCount()):
-            _processar_item(tree.topLevelItem(i))
-
-        return resultado
-
-    def _executar_criacao_tag(self, nome: str, uuid_pai: str = None):
-        """Executa a criacao da tag e atualiza a arvore."""
-        try:
-            dto = TagCreateDTO(nome=nome, id_tag_pai=uuid_pai)
-            nova_tag = self.tag_controller.criar_tag(dto, tipo='CONTEUDO')
-            if nova_tag:
-                ErrorHandler.show_success(self, "Sucesso", f"Tag '{nome}' criada com sucesso!")
-                self.load_tags_tree()
-                if nova_tag.get('uuid'):
-                    self.tag_tree_widget.set_selected_tags([nova_tag['uuid']])
-        except ValueError as ve:
-            QMessageBox.warning(self, "Erro de Validacao", str(ve))
-        except Exception as e:
-            ErrorHandler.handle_exception(self, e, "Erro ao criar tag")
 
     def show_preview(self):
         """Mostra preview da questao com os dados atuais do formulario."""
@@ -609,9 +568,8 @@ class QuestaoFormPage(QDialog):
             dificuldade_nome = dificuldade_map.get(dificuldade_id, 'N/A')
 
             tags_nomes = []
-            content_tags = self.tag_tree_widget.get_selected_content_tags_with_names()
-            for uuid, nome in content_tags:
-                tags_nomes.append(nome)
+            for item in self.tags_list.selectedItems():
+                tags_nomes.append(item.data(Qt.ItemDataRole.UserRole + 1))
 
             preview_data = {
                 'id': self.questao_id,

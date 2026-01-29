@@ -229,7 +229,57 @@ class TagService:
             for tag in vestibulares
         ]
 
-    def criar_tag(self, nome: str, uuid_tag_pai: Optional[str] = None, tipo: str = 'CONTEUDO') -> Optional[Dict[str, Any]]:
+    def _obter_prefixo_disciplina(self, uuid_disciplina: str) -> Optional[str]:
+        """
+        Obtém o prefixo de numeração da disciplina (baseado na ordem).
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+
+        Returns:
+            String com o prefixo (ex: "1" para Matemática) ou None
+        """
+        from src.models.orm.disciplina import Disciplina
+        disciplina = self.session.query(Disciplina).filter_by(uuid=uuid_disciplina, ativo=True).first()
+        if disciplina:
+            return str(disciplina.ordem)
+        return None
+
+    def _obter_proxima_numeracao_raiz_disciplina(self, uuid_disciplina: str, prefixo_disciplina: str) -> int:
+        """
+        Obtém a próxima numeração para tag raiz dentro de uma disciplina.
+
+        Args:
+            uuid_disciplina: UUID da disciplina
+            prefixo_disciplina: Prefixo da disciplina (ex: "1")
+
+        Returns:
+            Próximo número disponível
+        """
+        from src.models.orm.tag import Tag
+        # Buscar tags raiz da disciplina (nivel=1 e sem pai)
+        tags_raiz = self.session.query(Tag).filter(
+            Tag.uuid_disciplina == uuid_disciplina,
+            Tag.uuid_tag_pai == None,
+            Tag.numeracao.like(f"{prefixo_disciplina}.%")
+        ).all()
+
+        if not tags_raiz:
+            return 1
+
+        # Extrair números das tags raiz
+        numeros = []
+        for tag in tags_raiz:
+            partes = tag.numeracao.split('.')
+            if len(partes) >= 2:
+                try:
+                    numeros.append(int(partes[1]))
+                except ValueError:
+                    pass
+
+        return max(numeros) + 1 if numeros else 1
+
+    def criar_tag(self, nome: str, uuid_tag_pai: Optional[str] = None, tipo: str = 'CONTEUDO', uuid_disciplina: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Cria uma nova tag
 
@@ -237,6 +287,7 @@ class TagService:
             nome: Nome da tag (será convertido para maiúsculas)
             uuid_tag_pai: UUID da tag pai (opcional, None para tag raiz)
             tipo: Tipo da tag raiz - 'CONTEUDO', 'VESTIBULAR' ou 'SERIE' (ignorado se tiver pai)
+            uuid_disciplina: UUID da disciplina (obrigatorio para tags de conteudo)
 
         Returns:
             Dict com dados da tag criada ou None se erro
@@ -251,6 +302,9 @@ class TagService:
         existente = self.tag_repo.buscar_por_nome(nome)
         if existente:
             raise ValueError(f"Já existe uma tag com o nome '{nome}'")
+
+        # Determinar disciplina
+        disciplina_uuid = uuid_disciplina
 
         # Determinar nível e numeração
         if uuid_tag_pai:
@@ -268,6 +322,10 @@ class TagService:
             proxima_ordem = maior_num + 1
             numeracao = f"{tag_pai.numeracao}.{proxima_ordem}"
             ordem = proxima_ordem
+
+            # Herdar disciplina do pai se não fornecida
+            if not disciplina_uuid and tag_pai.uuid_disciplina:
+                disciplina_uuid = tag_pai.uuid_disciplina
         else:
             # Tag raiz - determinar prefixo baseado no tipo
             nivel = 1
@@ -285,11 +343,25 @@ class TagService:
                 numeracao = f"N{proxima_ordem}"
                 ordem = 200 + proxima_ordem  # Ordem mais alta ainda
             else:
-                # Tags de conteúdo (padrão) começam com número
-                maior_num = self.tag_repo.obter_maior_numeracao_raiz('')
-                proxima_ordem = maior_num + 1
-                numeracao = str(proxima_ordem)
-                ordem = proxima_ordem
+                # Tags de conteúdo - usar prefixo da disciplina
+                if disciplina_uuid:
+                    prefixo_disc = self._obter_prefixo_disciplina(disciplina_uuid)
+                    if prefixo_disc:
+                        proxima_ordem = self._obter_proxima_numeracao_raiz_disciplina(disciplina_uuid, prefixo_disc)
+                        numeracao = f"{prefixo_disc}.{proxima_ordem}"
+                        ordem = proxima_ordem
+                    else:
+                        # Fallback se não encontrar disciplina
+                        maior_num = self.tag_repo.obter_maior_numeracao_raiz('')
+                        proxima_ordem = maior_num + 1
+                        numeracao = str(proxima_ordem)
+                        ordem = proxima_ordem
+                else:
+                    # Sem disciplina - comportamento antigo
+                    maior_num = self.tag_repo.obter_maior_numeracao_raiz('')
+                    proxima_ordem = maior_num + 1
+                    numeracao = str(proxima_ordem)
+                    ordem = proxima_ordem
 
         # Criar tag
         tag = self.tag_repo.criar(
@@ -297,7 +369,8 @@ class TagService:
             numeracao=numeracao,
             nivel=nivel,
             uuid_tag_pai=uuid_tag_pai,
-            ordem=ordem
+            ordem=ordem,
+            uuid_disciplina=disciplina_uuid
         )
 
         self.session.flush()

@@ -170,10 +170,15 @@ class MainWindow(QMainWindow):
                         correta=alt.get('is_correct', False)
                     ))
 
+            # Converter fonte para maiuscula
+            fonte_raw = question_data.get('origin', '').strip()
+            fonte = fonte_raw.upper() if fonte_raw else None
+
             dto = QuestaoCreateDTO(
                 enunciado=question_data.get('statement', ''),
                 tipo=tipo,
                 ano=int(question_data.get('academic_year', 2026)) if question_data.get('academic_year') else 2026,
+                fonte=fonte,
                 alternativas=alternativas_dto,
                 tags=question_data.get('tags', []),
                 observacoes=None

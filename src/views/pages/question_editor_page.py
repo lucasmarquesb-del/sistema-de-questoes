@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTabWidget, QStackedWidget, QSpacerItem, QSizePolicy, QFrame,
-    QCompleter
+    QCompleter, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon
@@ -219,12 +219,70 @@ class QuestionEditorPage(QWidget):
         self.preview_tab.set_question_data(question_html, resolution_html)
 
     def _update_save_button_state(self):
-        # Simple validation for now: statement must not be empty, and at least one tag selected
+        # Validacao completa para habilitar o botao de salvar
         statement_ok = bool(self.editor_tab.statement_input.toPlainText().strip())
+        origin_ok = bool(self.editor_tab.origin_input.text().strip())
         tags_ok = bool(self.question_data.get('tags'))
-        self.save_button.setEnabled(statement_ok and tags_ok)
+
+        # Verificar alternativa correta se for objetiva
+        correct_alt_ok = True
+        if self.editor_tab.current_question_type == "objective":
+            has_correct = any(
+                alt_widget.radio_button.isChecked()
+                for alt_widget in self.editor_tab.alternatives_widgets
+            )
+            correct_alt_ok = has_correct
+
+        self.save_button.setEnabled(statement_ok and origin_ok and tags_ok and correct_alt_ok)
+
+    def _validate_question(self) -> tuple:
+        """Valida os dados da questao antes de salvar. Retorna (valido, mensagem_erro)."""
+        errors = []
+
+        # Verificar enunciado
+        if not self.editor_tab.statement_input.toPlainText().strip():
+            errors.append("O enunciado da questao e obrigatorio.")
+
+        # Verificar origem/fonte
+        if not self.editor_tab.origin_input.text().strip():
+            errors.append("A origem/fonte da questao e obrigatoria.")
+
+        # Verificar tags
+        if not self.question_data.get('tags'):
+            errors.append("E necessario selecionar pelo menos uma tag de conteudo.")
+
+        # Verificar alternativa correta (apenas para objetivas)
+        if self.editor_tab.current_question_type == "objective":
+            has_correct = any(
+                alt_widget.radio_button.isChecked()
+                for alt_widget in self.editor_tab.alternatives_widgets
+            )
+            if not has_correct:
+                errors.append("E necessario marcar uma alternativa como correta.")
+
+            # Verificar se todas as alternativas tem texto
+            empty_alts = []
+            for alt_widget in self.editor_tab.alternatives_widgets:
+                if not alt_widget.text_input.text().strip():
+                    letra = alt_widget.radio_button.text()
+                    empty_alts.append(letra)
+            if empty_alts:
+                errors.append(f"As alternativas {', '.join(empty_alts)} estao vazias.")
+
+        if errors:
+            return False, "\n".join(errors)
+        return True, ""
 
     def _on_save_clicked(self):
+        # Atualizar dados antes de validar
+        self._update_question_data()
+
+        # Validar questao
+        valido, erro = self._validate_question()
+        if not valido:
+            QMessageBox.warning(self, "Validacao", erro)
+            return
+
         self.save_requested.emit(self.question_data)
         self.status_label.setText("Questão salva com sucesso!")
 
@@ -235,10 +293,11 @@ class QuestionEditorPage(QWidget):
     def _setup_origin_autocomplete(self):
         """Configura auto-complete para o campo de origem/fonte."""
         try:
-            tag_controller = criar_tag_controller()
-            vestibulares = tag_controller.listar_vestibulares()
-            nomes = [vest['nome'] for vest in vestibulares]
-            completer = QCompleter(nomes, self)
+            from src.controllers.adapters import listar_fontes_questao
+            fontes = listar_fontes_questao()
+            # Usar siglas para o autocomplete (ENEM, FUVEST, etc)
+            siglas = [f['sigla'] for f in fontes]
+            completer = QCompleter(siglas, self)
             completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
             completer.setFilterMode(Qt.MatchFlag.MatchContains)
             self.editor_tab.origin_input.setCompleter(completer)

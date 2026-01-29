@@ -145,29 +145,48 @@ class EditorTab(QWidget):
 
     def _create_alternative_input(self, char: str):
         container = QWidget(self)
+        container.setObjectName(f"alternative_container_{char}")
         layout = QHBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(Spacing.SM)
+
+        # Estilo inicial do container
+        container.setStyleSheet(f"""
+            QWidget#alternative_container_{char} {{
+                background-color: {Color.WHITE};
+                border: 2px solid {Color.BORDER_LIGHT};
+                border-radius: {Dimensions.BORDER_RADIUS_MD};
+            }}
+        """)
 
         radio_button = QRadioButton(char, container)
         radio_button.setObjectName(f"alternative_radio_{char}")
-        # Default styling for radio buttons
+        radio_button.setMinimumWidth(30)
+        # Estilo do radio button com indicador visível
         radio_button.setStyleSheet(f"""
             QRadioButton {{
-                font-size: {Typography.FONT_SIZE_MD};
+                font-size: {Typography.FONT_SIZE_LG};
+                font-weight: bold;
                 color: {Color.DARK_TEXT};
+                padding: 4px;
             }}
             QRadioButton::indicator {{
-                width: 16px;
-                height: 16px;
+                width: 20px;
+                height: 20px;
+                border-radius: 10px;
+                border: 2px solid {Color.GRAY_TEXT};
+                background-color: {Color.WHITE};
             }}
-            QRadioButton::indicator::checked {{
-                image: url(images/icons/radio_checked.png); /* Placeholder */
+            QRadioButton::indicator:checked {{
+                border: 2px solid #22c55e;
+                background-color: #22c55e;
             }}
-            QRadioButton::indicator::unchecked {{
-                image: url(images/icons/radio_unchecked.png); /* Placeholder */
+            QRadioButton::indicator:hover {{
+                border: 2px solid {Color.PRIMARY_BLUE};
             }}
         """)
+        # Conectar sinal para atualizar estilo visual quando selecionado
+        radio_button.toggled.connect(lambda checked, c=container, ch=char: self._on_alternative_toggled(c, ch, checked))
         layout.addWidget(radio_button)
 
         text_input = TextInput(placeholder_text=f"Alternativa {char}", parent=container)
@@ -195,6 +214,27 @@ class EditorTab(QWidget):
         container.radio_button = radio_button # Attach for easier access
         container.add_image_button = add_image_button # Attach for easier access
         return container
+
+    def _on_alternative_toggled(self, container, char: str, checked: bool):
+        """Atualiza o estilo visual do container quando a alternativa é selecionada."""
+        if checked:
+            # Estilo quando selecionada (verde)
+            container.setStyleSheet(f"""
+                QWidget#alternative_container_{char} {{
+                    background-color: #dcfce7;
+                    border: 2px solid #22c55e;
+                    border-radius: {Dimensions.BORDER_RADIUS_MD};
+                }}
+            """)
+        else:
+            # Estilo padrão
+            container.setStyleSheet(f"""
+                QWidget#alternative_container_{char} {{
+                    background-color: {Color.WHITE};
+                    border: 2px solid {Color.BORDER_LIGHT};
+                    border-radius: {Dimensions.BORDER_RADIUS_MD};
+                }}
+            """)
 
     def _on_question_type_toggled(self, radio_button):
         if radio_button.text() == "Objetiva":
