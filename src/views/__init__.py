@@ -12,7 +12,7 @@ from src.views.components.dialogs.color_picker_dialog import ColorPickerDialog
 from src.views.pages.tag_manager_page import TagManager
 from src.views.pages.export_page import ExportDialog
 from src.views.pages.lista_form_page import ListaForm
-from src.views.pages.questao_selector_page import QuestaoSelectorDialog, QuestaoSelectorCard
+from src.views.pages.questao_selector_page import QuestaoSelectorDialog, SelectableQuestionCard
 from src.views.pages.questao_preview_page import QuestaoPreview
 from src.views.pages.search_page import SearchPanel, SearchPage
 from src.views.pages.lista_page import ListaPanel, ListaPage
@@ -47,7 +47,7 @@ __all__ = [
     'ExportDialog',
     'ListaForm',
     'QuestaoSelectorDialog',
-    'QuestaoSelectorCard',
+    'SelectableQuestionCard',
     'QuestaoPreview',
     'SearchPanel',
     'SearchPage',

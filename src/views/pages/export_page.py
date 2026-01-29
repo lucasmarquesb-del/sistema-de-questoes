@@ -6,7 +6,8 @@ Diálogo de configuração de exportação LaTeX
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QCheckBox, QRadioButton, QButtonGroup, QSpinBox, QSlider,
-    QComboBox, QGroupBox, QFileDialog, QMessageBox, QLineEdit
+    QComboBox, QGroupBox, QFileDialog, QMessageBox, QLineEdit,
+    QSizePolicy
 )
 from PyQt6.QtCore import Qt
 import logging
@@ -27,7 +28,7 @@ class ExportDialog(QDialog):
         self.id_lista = id_lista
         self.controller = criar_export_controller()
         self.setWindowTitle(f"Exportar Lista ID {id_lista} para LaTeX")
-        self.setMinimumSize(550, 750)
+        self.setMinimumSize(550, 800)
         self.init_ui()
         self.load_templates()
         logger.info(f"ExportDialog inicializado para lista ID: {id_lista}")
@@ -100,18 +101,20 @@ class ExportDialog(QDialog):
         # Campos específicos do template Wallon (inicialmente ocultos)
         self.wallon_group = QGroupBox("Configurações do Template Wallon")
         wallon_layout = QVBoxLayout(self.wallon_group)
+        wallon_layout.setSpacing(8)
 
         label_width = 80
+        field_height = 30
 
         # Trimestre
         trimestre_layout = QHBoxLayout()
         lbl_trimestre = QLabel("Trimestre:")
-        lbl_trimestre.setMinimumWidth(label_width)
+        lbl_trimestre.setFixedSize(label_width, field_height)
         trimestre_layout.addWidget(lbl_trimestre)
         self.trimestre_combo = QComboBox()
         self.trimestre_combo.addItems(["I", "II", "III", "IV"])
-        self.trimestre_combo.setMinimumWidth(100)
-        self.trimestre_combo.setMinimumHeight(30)
+        self.trimestre_combo.setFixedSize(100, field_height)
+        self.trimestre_combo.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         trimestre_layout.addWidget(self.trimestre_combo)
         trimestre_layout.addStretch()
         wallon_layout.addLayout(trimestre_layout)
@@ -119,41 +122,46 @@ class ExportDialog(QDialog):
         # Professor
         prof_layout = QHBoxLayout()
         lbl_professor = QLabel("Professor:")
-        lbl_professor.setMinimumWidth(label_width)
+        lbl_professor.setFixedSize(label_width, field_height)
         prof_layout.addWidget(lbl_professor)
         self.professor_input = QLineEdit()
         self.professor_input.setPlaceholderText("Nome do professor")
-        self.professor_input.setMinimumHeight(30)
+        self.professor_input.setFixedHeight(field_height)
+        self.professor_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         prof_layout.addWidget(self.professor_input)
         wallon_layout.addLayout(prof_layout)
 
         # Disciplina
         disc_layout = QHBoxLayout()
         lbl_disciplina = QLabel("Disciplina:")
-        lbl_disciplina.setMinimumWidth(label_width)
+        lbl_disciplina.setFixedSize(label_width, field_height)
         disc_layout.addWidget(lbl_disciplina)
         self.disciplina_input = QLineEdit()
         self.disciplina_input.setPlaceholderText("Nome da disciplina")
-        self.disciplina_input.setMinimumHeight(30)
+        self.disciplina_input.setFixedHeight(field_height)
+        self.disciplina_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         disc_layout.addWidget(self.disciplina_input)
         wallon_layout.addLayout(disc_layout)
 
         # Ano
         ano_layout = QHBoxLayout()
         lbl_ano = QLabel("Ano:")
-        lbl_ano.setMinimumWidth(label_width)
+        lbl_ano.setFixedSize(label_width, field_height)
         ano_layout.addWidget(lbl_ano)
         self.ano_input = QLineEdit()
         self.ano_input.setPlaceholderText("Ex: 2025")
         self.ano_input.setText("2025")
-        self.ano_input.setMinimumWidth(100)
-        self.ano_input.setMinimumHeight(30)
+        self.ano_input.setFixedSize(100, field_height)
+        self.ano_input.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         ano_layout.addWidget(self.ano_input)
         ano_layout.addStretch()
         wallon_layout.addLayout(ano_layout)
 
         self.wallon_group.setVisible(False)
+        self.wallon_group.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         layout.addWidget(self.wallon_group)
+
+        layout.addStretch()
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()

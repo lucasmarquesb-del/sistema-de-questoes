@@ -82,7 +82,7 @@ class Dimensions:
     BORDER_RADIUS_CIRCLE = "50%"
     TAXONOMY_TREE_WIDTH = 300
     EXAM_LIST_WIDTH = 250
-    EXPORT_CONFIG_WIDTH = 200
+    EXPORT_CONFIG_WIDTH = 320
 
 
 # Caminhos de ícones centralizados
