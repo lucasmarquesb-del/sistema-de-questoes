@@ -11,6 +11,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# IMPORTANTE: QtWebEngineWidgets deve ser importado ANTES de criar QApplication
+from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 # Importar gerenciador de sessões ORM

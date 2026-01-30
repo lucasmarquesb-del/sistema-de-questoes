@@ -5,10 +5,10 @@ Janela modal de visualização da questão no formato PDF
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QScrollArea, QWidget, QFrame, QSizePolicy
+    QFrame
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap, QFont
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 import logging
 import re
 import os
@@ -42,193 +42,71 @@ class QuestaoPreview(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
 
         # Header com info do preview
-        header_layout = QHBoxLayout()
+        header_widget = QFrame(self)
+        header_widget.setFixedHeight(30)
+        header_widget.setStyleSheet("background: transparent;")
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(10)
+
         header_label = QLabel("Preview - Visualização no formato PDF")
-        header_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #555;")
+        header_label.setStyleSheet("font-size: 13px; font-weight: bold; color: #555; background: transparent;")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
         # Badge de tipo
         tipo = self.questao_data.get('tipo', 'N/A')
         tipo_label = QLabel(tipo)
+        tipo_label.setFixedSize(80, 22)
         color = "#2196f3" if tipo == 'OBJETIVA' else "#9c27b0"
         tipo_label.setStyleSheet(f"""
             QLabel {{
                 background-color: {color};
                 color: white;
-                padding: 4px 12px;
+                padding: 2px 8px;
                 border-radius: 3px;
                 font-weight: bold;
-                font-size: 11px;
+                font-size: 10px;
+                qproperty-alignment: AlignCenter;
             }}
         """)
         header_layout.addWidget(tipo_label)
-        layout.addLayout(header_layout)
+        layout.addWidget(header_widget)
 
-        # Área de scroll com fundo branco (simula página PDF)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: 1px solid #ccc;
-                background-color: #f0f0f0;
-            }
-        """)
+        # Área de preview usando QWebEngineView
+        self.web_view = QWebEngineView(self)
+        self.web_view.setMinimumHeight(400)
+        self.web_view.setStyleSheet("border: 1px solid #ccc; background-color: white;")
 
-        # Container da "página PDF"
-        page_container = QWidget()
-        page_container.setStyleSheet("""
-            QWidget {
-                background-color: white;
-            }
-        """)
-        page_layout = QVBoxLayout(page_container)
-        page_layout.setContentsMargins(40, 30, 40, 30)
-        page_layout.setSpacing(15)
+        # Gerar HTML da questão
+        html_content = self._gerar_html_questao()
+        self.web_view.setHtml(html_content)
 
-        # Número da questão e cabeçalho
-        fonte = self.questao_data.get('fonte') or ''
-        ano = self.questao_data.get('ano') or ''
-
-        questao_header = "1."
-        if fonte and ano:
-            questao_header += f" <b>({fonte} - {ano})</b>"
-        elif fonte:
-            questao_header += f" <b>({fonte})</b>"
-        elif ano:
-            questao_header += f" <b>({ano})</b>"
-
-        # Processar enunciado
-        enunciado = self.questao_data.get('enunciado', '')
-        enunciado_widgets = self._processar_texto_com_imagens(enunciado)
-
-        # Primeira linha: número + cabeçalho + início do enunciado
-        first_line_layout = QHBoxLayout()
-        first_line_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        header_label = QLabel(questao_header)
-        header_label.setFont(QFont("Times New Roman", 12))
-        header_label.setTextFormat(Qt.TextFormat.RichText)
-        first_line_layout.addWidget(header_label)
-        first_line_layout.addStretch()
-
-        page_layout.addLayout(first_line_layout)
-
-        # Adicionar widgets do enunciado (texto e imagens)
-        for widget in enunciado_widgets:
-            page_layout.addWidget(widget)
-
-        # Alternativas (se objetiva)
-        if tipo == 'OBJETIVA' and 'alternativas' in self.questao_data:
-            page_layout.addSpacing(10)
-
-            for alt in self.questao_data['alternativas']:
-                letra = alt.get('letra', '')
-                correta = alt.get('correta', False)
-
-                letra_text = f"<b>{letra})</b>"
-                if correta:
-                    letra_text = f"<b style='color: green;'>{letra})</b>"
-
-                alt_container = QWidget()
-                alt_container_layout = QVBoxLayout(alt_container)
-                alt_container_layout.setContentsMargins(20, 2, 0, 2)
-                alt_container_layout.setSpacing(2)
-
-                first_line = QHBoxLayout()
-                first_line.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-                letra_label = QLabel(letra_text)
-                letra_label.setFont(QFont("Times New Roman", 12))
-                letra_label.setTextFormat(Qt.TextFormat.RichText)
-                letra_label.setFixedWidth(30)
-                first_line.addWidget(letra_label)
-
-                texto_alt_raw = alt.get('texto', '')
-                alt_widgets = self._processar_texto_com_imagens(texto_alt_raw)
-
-                if alt_widgets:
-                    first_widget = alt_widgets[0]
-                    if isinstance(first_widget, QLabel) and first_widget.pixmap() and not first_widget.pixmap().isNull():
-                        first_widget.setAlignment(Qt.AlignmentFlag.AlignLeft)
-                    elif correta and isinstance(first_widget, QLabel):
-                        texto_atual = first_widget.text()
-                        first_widget.setText(f"<span style='color: green;'>{texto_atual}</span> ✓")
-                    first_line.addWidget(first_widget, 1)
-                else:
-                    empty_label = QLabel("")
-                    first_line.addWidget(empty_label, 1)
-
-                alt_container_layout.addLayout(first_line)
-
-                for widget in alt_widgets[1:]:
-                    if isinstance(widget, QLabel) and widget.pixmap() and not widget.pixmap().isNull():
-                        widget.setAlignment(Qt.AlignmentFlag.AlignLeft)
-                    widget.setContentsMargins(30, 0, 0, 0)
-                    alt_container_layout.addWidget(widget)
-
-                page_layout.addWidget(alt_container)
-
-        # Resolução (se houver)
-        resolucao = self.questao_data.get('resolucao')
-        if resolucao and resolucao.strip():
-            page_layout.addSpacing(20)
-
-            res_title = QLabel("<b>Resolução:</b>")
-            res_title.setFont(QFont("Times New Roman", 12))
-            res_title.setTextFormat(Qt.TextFormat.RichText)
-            page_layout.addWidget(res_title)
-
-            res_widgets = self._processar_texto_com_imagens(resolucao)
-            for widget in res_widgets:
-                page_layout.addWidget(widget)
-
-        # Tags (rodapé informativo)
-        tags = self.questao_data.get('tags', [])
-        if tags:
-            page_layout.addSpacing(20)
-
-            tags_layout = QHBoxLayout()
-            tags_layout.addWidget(QLabel("<i>Tags:</i>"))
-
-            for tag in tags:
-                tag_nome = tag.get('nome') if isinstance(tag, dict) else tag
-                tag_label = QLabel(tag_nome)
-                tag_label.setStyleSheet("""
-                    QLabel {
-                        background-color: #e8e8e8;
-                        color: #555;
-                        padding: 2px 8px;
-                        border-radius: 2px;
-                        font-size: 10px;
-                    }
-                """)
-                tags_layout.addWidget(tag_label)
-
-            tags_layout.addStretch()
-            page_layout.addLayout(tags_layout)
-
-        page_layout.addStretch()
-
-        scroll.setWidget(page_container)
-        layout.addWidget(scroll)
+        layout.addWidget(self.web_view, 1)  # stretch factor 1
 
         # Botões
-        btn_layout = QHBoxLayout()
+        btn_frame = QFrame(self)
+        btn_frame.setFixedHeight(45)
+        btn_frame.setStyleSheet("background: transparent;")
+        btn_layout = QHBoxLayout(btn_frame)
+        btn_layout.setContentsMargins(0, 5, 0, 5)
         btn_layout.addStretch()
 
         btn_edit = QPushButton("Editar Questão")
+        btn_edit.setFixedSize(130, 35)
         btn_edit.setStyleSheet("""
             QPushButton {
-                padding: 8px 25px;
+                padding: 8px 20px;
                 background-color: #2196F3;
                 color: white;
                 border: none;
                 border-radius: 4px;
                 font-weight: bold;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: #1976D2;
@@ -238,14 +116,16 @@ class QuestaoPreview(QDialog):
         btn_layout.addWidget(btn_edit)
 
         btn_close = QPushButton("Fechar")
+        btn_close.setFixedSize(100, 35)
         btn_close.setStyleSheet("""
             QPushButton {
-                padding: 8px 25px;
+                padding: 8px 20px;
                 background-color: #4CAF50;
                 color: white;
                 border: none;
                 border-radius: 4px;
                 font-weight: bold;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -254,126 +134,165 @@ class QuestaoPreview(QDialog):
         btn_close.clicked.connect(self.accept)
         btn_layout.addWidget(btn_close)
 
-        layout.addLayout(btn_layout)
+        layout.addWidget(btn_frame)
 
-    def _on_edit_clicked(self):
-        """Handler para botão de editar."""
-        self.edit_requested.emit(self.questao_data)
-        self.accept()
+    def _gerar_html_questao(self) -> str:
+        """Gera HTML completo da questão para renderização."""
+        tipo = self.questao_data.get('tipo', 'N/A')
+        fonte = self.questao_data.get('fonte') or ''
+        ano = self.questao_data.get('ano') or ''
+        enunciado = self.questao_data.get('enunciado', '')
 
-    def _processar_texto_com_imagens(self, texto: str) -> list:
-        """
-        Processa texto e retorna lista de widgets (QLabel para texto, QLabel com pixmap para imagens).
-        """
-        widgets = []
+        # Processar enunciado
+        enunciado_html = self._formatar_texto(enunciado)
 
-        if not texto:
-            return widgets
+        # Cabeçalho da questão
+        questao_header = "1."
+        if fonte and ano:
+            questao_header += f" <b>({fonte} - {ano})</b>"
+        elif fonte:
+            questao_header += f" <b>({fonte})</b>"
+        elif ano:
+            questao_header += f" <b>({ano})</b>"
 
-        # Padrão para encontrar imagens: [IMG:caminho:escala]
-        pattern = r'\[IMG:(.+?):([0-9.]+)\]'
+        # Construir HTML
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body {{
+    font-family: 'Times New Roman', serif;
+    font-size: 14px;
+    padding: 30px 40px;
+    margin: 0;
+    color: #333;
+    background-color: white;
+}}
+.header {{ margin-bottom: 10px; }}
+.enunciado {{ margin-bottom: 15px; line-height: 1.5; }}
+table {{
+    border-collapse: collapse;
+    margin: 8px auto;
+    width: 80%;
+}}
+td, th {{
+    border: 1px solid #333;
+    padding: 2px 6px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.2;
+}}
+th {{
+    background-color: #e0e0e0;
+    font-weight: bold;
+}}
+ul, ol {{
+    margin: 5px 0;
+    padding-left: 25px;
+}}
+li {{
+    margin: 2px 0;
+}}
+.alternativas {{
+    margin-top: 15px;
+}}
+.alternativa {{
+    margin: 5px 0 5px 20px;
+    line-height: 1.4;
+}}
+.alternativa-correta {{
+    color: green;
+}}
+.tags {{
+    margin-top: 20px;
+    font-size: 12px;
+    color: #666;
+}}
+.tag {{
+    display: inline-block;
+    background-color: #e8e8e8;
+    color: #555;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-right: 5px;
+    font-size: 10px;
+}}
+.resolucao {{
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #ccc;
+}}
+</style>
+</head>
+<body>
+<div class="header">{questao_header}</div>
+<div class="enunciado">{enunciado_html}</div>
+"""
 
-        parts = re.split(pattern, texto)
+        # Alternativas (se objetiva)
+        if tipo == 'OBJETIVA' and 'alternativas' in self.questao_data:
+            html += '<div class="alternativas">'
+            for alt in self.questao_data['alternativas']:
+                letra = alt.get('letra', '')
+                texto = alt.get('texto', '')
+                correta = alt.get('correta', False)
 
-        i = 0
-        while i < len(parts):
-            part = parts[i]
+                texto_html = self._formatar_texto(texto)
 
-            if i + 2 < len(parts):
-                next_part = parts[i + 1] if i + 1 < len(parts) else None
-                scale_part = parts[i + 2] if i + 2 < len(parts) else None
+                if correta:
+                    html += f'<div class="alternativa alternativa-correta"><b>{letra})</b> {texto_html} ✓</div>'
+                else:
+                    html += f'<div class="alternativa"><b>{letra})</b> {texto_html}</div>'
+            html += '</div>'
 
-                if part.strip():
-                    text_widget = self._criar_label_texto(part)
-                    widgets.append(text_widget)
+        # Resolução (se houver)
+        resolucao = self.questao_data.get('resolucao')
+        if resolucao and resolucao.strip():
+            resolucao_html = self._formatar_texto(resolucao)
+            html += f'<div class="resolucao"><b>Resolução:</b><br>{resolucao_html}</div>'
 
-                if next_part and scale_part and os.path.exists(next_part):
-                    try:
-                        scale = float(scale_part)
-                        img_widget = self._criar_label_imagem(next_part, scale)
-                        if img_widget:
-                            widgets.append(img_widget)
-                        i += 3
-                        continue
-                    except (ValueError, Exception):
-                        pass
+        # Tags
+        tags = self.questao_data.get('tags', [])
+        if tags:
+            html += '<div class="tags"><i>Tags:</i> '
+            for tag in tags:
+                tag_nome = tag.get('nome') if isinstance(tag, dict) else tag
+                html += f'<span class="tag">{tag_nome}</span>'
+            html += '</div>'
 
-            if part.strip():
-                text_widget = self._criar_label_texto(part)
-                widgets.append(text_widget)
+        html += '</body></html>'
+        return html
 
-            i += 1
-
-        return widgets
-
-    def _criar_label_texto(self, texto: str) -> QLabel:
-        """Cria QLabel com texto formatado."""
-        texto_formatado = self._formatar_texto_latex(texto)
-
-        label = QLabel(texto_formatado)
-        label.setFont(QFont("Times New Roman", 12))
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setStyleSheet("padding: 5px 0;")
-
-        return label
-
-    def _criar_label_imagem(self, caminho: str, escala: float) -> QLabel:
-        """Cria QLabel com imagem."""
-        if not os.path.exists(caminho):
-            return None
-
-        pixmap = QPixmap(caminho)
-        if pixmap.isNull():
-            return None
-
-        new_width = int(pixmap.width() * escala)
-        new_height = int(pixmap.height() * escala)
-
-        max_width = 600
-        if new_width > max_width:
-            ratio = max_width / new_width
-            new_width = max_width
-            new_height = int(new_height * ratio)
-
-        scaled_pixmap = pixmap.scaled(
-            new_width, new_height,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-
-        label = QLabel()
-        label.setPixmap(scaled_pixmap)
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet("padding: 10px 0;")
-
-        return label
-
-    def _formatar_texto_latex(self, texto: str) -> str:
-        """
-        Converte comandos LaTeX básicos para HTML.
-        """
+    def _formatar_texto(self, texto: str) -> str:
+        """Formata texto com suporte a tabelas, listas e formatações."""
         if not texto:
             return ""
 
-        # Negrito: \textbf{texto}
+        # Processar tabelas
+        texto = self._processar_tabelas_para_html(texto)
+
+        # Processar listas
+        texto = self._processar_listas_para_html(texto)
+
+        # Processar imagens
+        texto = self._processar_imagens(texto)
+
+        # Formatações de texto
         texto = re.sub(r'\\textbf\{([^}]*)\}', r'<b>\1</b>', texto)
-
-        # Itálico: \textit{texto}
         texto = re.sub(r'\\textit\{([^}]*)\}', r'<i>\1</i>', texto)
-
-        # Sublinhado: \underline{texto}
         texto = re.sub(r'\\underline\{([^}]*)\}', r'<u>\1</u>', texto)
+        texto = re.sub(r'\\textsuperscript\{([^}]*)\}', r'<sup>\1</sup>', texto)
+        texto = re.sub(r'\\textsubscript\{([^}]*)\}', r'<sub>\1</sub>', texto)
 
         # Letras gregas
         gregas = {
             r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
-            r'\epsilon': 'ε', r'\varepsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η',
-            r'\theta': 'θ', r'\vartheta': 'ϑ', r'\iota': 'ι', r'\kappa': 'κ',
-            r'\lambda': 'λ', r'\mu': 'μ', r'\nu': 'ν', r'\xi': 'ξ',
-            r'\pi': 'π', r'\varpi': 'ϖ', r'\rho': 'ρ', r'\varrho': 'ϱ',
-            r'\sigma': 'σ', r'\varsigma': 'ς', r'\tau': 'τ', r'\upsilon': 'υ',
-            r'\phi': 'φ', r'\varphi': 'φ', r'\chi': 'χ', r'\psi': 'ψ', r'\omega': 'ω',
+            r'\epsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ',
+            r'\iota': 'ι', r'\kappa': 'κ', r'\lambda': 'λ', r'\mu': 'μ',
+            r'\nu': 'ν', r'\xi': 'ξ', r'\pi': 'π', r'\rho': 'ρ',
+            r'\sigma': 'σ', r'\tau': 'τ', r'\upsilon': 'υ', r'\phi': 'φ',
+            r'\chi': 'χ', r'\psi': 'ψ', r'\omega': 'ω',
             r'\Gamma': 'Γ', r'\Delta': 'Δ', r'\Theta': 'Θ', r'\Lambda': 'Λ',
             r'\Xi': 'Ξ', r'\Pi': 'Π', r'\Sigma': 'Σ', r'\Upsilon': 'Υ',
             r'\Phi': 'Φ', r'\Psi': 'Ψ', r'\Omega': 'Ω',
@@ -382,9 +301,184 @@ class QuestaoPreview(QDialog):
         for latex, unicode_char in gregas.items():
             texto = texto.replace(latex, unicode_char)
 
+        # Converter múltiplas quebras de linha em uma única <br>
+        texto = re.sub(r'\n{2,}', '<br><br>', texto)
         texto = texto.replace('\n', '<br>')
 
+        # Remover <br> redundantes ao redor de tabelas
+        texto = re.sub(r'(<br>)+(<table)', r'\2', texto)
+        texto = re.sub(r'(</table>)(<br>)+', r'\1', texto)
+
         return texto
+
+    def _processar_imagens(self, texto: str) -> str:
+        """Processa placeholders de imagem [IMG:caminho:escala]."""
+        pattern = r'\[IMG:(.+?):([0-9.]+)\]'
+
+        def replace_image(match):
+            caminho = match.group(1)
+            escala = float(match.group(2))
+            if os.path.exists(caminho):
+                # Converter para file:// URL
+                caminho_url = caminho.replace('\\', '/')
+                width = int(400 * escala)
+                return f'<br><img src="file:///{caminho_url}" style="max-width:{width}px; display:block; margin:10px auto;"><br>'
+            return ''
+
+        return re.sub(pattern, replace_image, texto)
+
+    def _processar_tabelas_para_html(self, texto: str) -> str:
+        """Converte tabelas no formato [TABELA]...[/TABELA] para HTML."""
+        table_pattern = re.compile(
+            r'\[TABELA\]\s*\n(.*?)\[/TABELA\]',
+            re.DOTALL
+        )
+
+        def convert_table(match):
+            table_content = match.group(1).strip()
+            lines = table_content.split('\n')
+
+            if not lines:
+                return ''
+
+            html_lines = ['<table>']
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                is_header = '[CABECALHO]' in line
+                if is_header:
+                    line = line.replace('[CABECALHO]', '').replace('[/CABECALHO]', '')
+
+                cells = [cell.strip() for cell in line.split('|')]
+
+                html_lines.append('<tr>')
+                for cell in cells:
+                    cell_html = self._processar_formatacao_celula(cell)
+                    if is_header:
+                        html_lines.append(f'<th>{cell_html}</th>')
+                    else:
+                        html_lines.append(f'<td>{cell_html}</td>')
+                html_lines.append('</tr>')
+
+            html_lines.append('</table>')
+            return ''.join(html_lines)
+
+        return table_pattern.sub(convert_table, texto)
+
+    def _processar_formatacao_celula(self, cell_text: str) -> str:
+        """Processa formatações de uma célula de tabela."""
+        result = cell_text
+
+        # Processar cor de fundo
+        color_pattern = re.compile(r'\[COR:#([a-fA-F0-9]{6})\](.*?)\[/COR\]', re.DOTALL)
+        color_match = color_pattern.search(result)
+        if color_match:
+            cell_color = color_match.group(1)
+            inner_text = color_match.group(2)
+            result = f'<span style="background-color:#{cell_color};">{inner_text}</span>'
+            result = color_pattern.sub(result, cell_text)
+
+        return result
+
+    def _processar_listas_para_html(self, texto: str) -> str:
+        """Converte listas visuais para HTML."""
+        lines = texto.split('\n')
+        result = []
+        in_list = False
+        list_type = None
+
+        itemize_symbols = r'[•○■□▸✓★–]'
+        itemize_pattern = re.compile(rf'^[ ]{{2,4}}({itemize_symbols})\s+(.+)$')
+        arabic_pattern = re.compile(r'^[ ]{2,4}(\d+)\.\s+(.+)$')
+        alpha_lower_pattern = re.compile(r'^[ ]{2,4}([a-z])\)\s+(.+)$')
+        alpha_upper_pattern = re.compile(r'^[ ]{2,4}([A-Z])\)\s+(.+)$')
+        roman_lower_pattern = re.compile(r'^[ ]{2,4}(i{1,3}|iv|vi{0,3}|ix|xi{0,3})\.\s+(.+)$')
+        roman_upper_pattern = re.compile(r'^[ ]{2,4}(I{1,3}|IV|VI{0,3}|IX|XI{0,3})\.\s+(.+)$')
+
+        def close_list():
+            nonlocal in_list, list_type
+            if in_list:
+                result.append(f'</{list_type}>')
+                in_list = False
+                list_type = None
+
+        for line in lines:
+            itemize_match = itemize_pattern.match(line)
+            if itemize_match:
+                if not in_list or list_type != 'ul':
+                    close_list()
+                    result.append('<ul>')
+                    in_list = True
+                    list_type = 'ul'
+                result.append(f'<li>{itemize_match.group(2)}</li>')
+                continue
+
+            arabic_match = arabic_pattern.match(line)
+            if arabic_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol>')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li>{arabic_match.group(2)}</li>')
+                continue
+
+            alpha_lower_match = alpha_lower_pattern.match(line)
+            if alpha_lower_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="list-style-type:lower-alpha;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li>{alpha_lower_match.group(2)}</li>')
+                continue
+
+            alpha_upper_match = alpha_upper_pattern.match(line)
+            if alpha_upper_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="list-style-type:upper-alpha;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li>{alpha_upper_match.group(2)}</li>')
+                continue
+
+            roman_lower_match = roman_lower_pattern.match(line)
+            if roman_lower_match and roman_lower_match.group(1).islower():
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="list-style-type:lower-roman;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li>{roman_lower_match.group(2)}</li>')
+                continue
+
+            roman_upper_match = roman_upper_pattern.match(line)
+            if roman_upper_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="list-style-type:upper-roman;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li>{roman_upper_match.group(2)}</li>')
+                continue
+
+            if line.strip() and in_list:
+                close_list()
+
+            result.append(line)
+
+        close_list()
+        # Juntar sem newlines para evitar <br> extras
+        return ''.join(result)
+
+    def _on_edit_clicked(self):
+        """Handler para botão de editar."""
+        self.edit_requested.emit(self.questao_data)
+        self.accept()
 
 
 logger.info("QuestaoPreview carregado")

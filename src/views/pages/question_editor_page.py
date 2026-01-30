@@ -1,4 +1,5 @@
 # src/views/pages/question_editor_page.py
+import re
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTabWidget, QStackedWidget, QSpacerItem, QSizePolicy, QFrame,
@@ -202,29 +203,249 @@ class QuestionEditorPage(QWidget):
         self.question_data['tags'] = selected_tag_uuids
 
     def _update_preview(self):
-        # Simple HTML generation for preview (will be more sophisticated with LaTeX rendering)
+        # Atualizar dados antes de gerar preview
+        self._update_question_data()
+
+        # HTML generation for preview with table and list support
         difficulty_map = {1: 'Fácil', 2: 'Médio', 3: 'Difícil'}
         difficulty_id = self.question_data.get('difficulty', -1)
         difficulty_name = difficulty_map.get(difficulty_id, 'Não selecionada')
 
-        question_html = f"<h2>Pré-visualização da Questão</h2>"
-        question_html += f"<p><b>Ano:</b> {self.question_data.get('academic_year', '')}</p>"
-        question_html += f"<p><b>Origem:</b> {self.question_data.get('origin', '')}</p>"
-        question_html += f"<p><b>Tipo:</b> {self.question_data.get('question_type', '')}</p>"
-        question_html += f"<p><b>Dificuldade:</b> {difficulty_name}</p>"
-        question_html += f"<h3>Enunciado:</h3><p>{self.question_data.get('statement', '')}</p>"
+        # Processar enunciado com formatações
+        statement_raw = self.question_data.get('statement', '')
+        statement_formatted = self._format_text_for_preview(statement_raw)
+
+        # Tipo de questão formatado
+        tipo_display = 'Objetiva' if self.question_data.get('question_type') == 'objective' else 'Discursiva'
+
+        question_html = f"<h2 style='margin-bottom:10px;'>Pré-visualização da Questão</h2>"
+        question_html += f"<p style='margin:3px 0;'><b>Ano:</b> {self.question_data.get('academic_year', '') or '-'}</p>"
+        question_html += f"<p style='margin:3px 0;'><b>Origem:</b> {self.question_data.get('origin', '') or '-'}</p>"
+        question_html += f"<p style='margin:3px 0;'><b>Tipo:</b> {tipo_display}</p>"
+        question_html += f"<p style='margin:3px 0;'><b>Dificuldade:</b> {difficulty_name}</p>"
+        question_html += f"<h3 style='margin-top:15px; margin-bottom:8px;'>Enunciado:</h3>"
+        question_html += f"<div style='line-height:1.5;'>{statement_formatted}</div>"
 
         resolution_html = None
         if self.question_data.get('question_type') == 'objective':
-            question_html += "<h3>Alternativas:</h3><ol type='A'>"
+            question_html += "<h3 style='margin-top:15px; margin-bottom:8px;'>Alternativas:</h3><ol type='A' style='margin:5px 0; padding-left:25px;'>"
             for alt in self.question_data.get('alternatives', []):
-                checked = " (Correta)" if alt['is_correct'] else ""
-                question_html += f"<li>{alt['text']}{checked}</li>"
+                checked = " <span style='color: green;'>✓ (Correta)</span>" if alt.get('is_correct') else ""
+                alt_text = self._format_text_for_preview(alt.get('text', ''))
+                question_html += f"<li style='margin:3px 0;'>{alt_text}{checked}</li>"
             question_html += "</ol>"
-        else: # discursive
-            resolution_html = f"<h3>Chave de Resposta:</h3><p>{self.question_data.get('answer_key', '')}</p>"
+        else:  # discursive
+            answer_key_raw = self.question_data.get('answer_key', '')
+            if answer_key_raw:
+                answer_key_formatted = self._format_text_for_preview(answer_key_raw)
+                resolution_html = f"<h3 style='margin-bottom:8px;'>Chave de Resposta:</h3><div style='line-height:1.5;'>{answer_key_formatted}</div>"
 
         self.preview_tab.set_question_data(question_html, resolution_html)
+
+    def _format_text_for_preview(self, texto: str) -> str:
+        """Formata texto para preview, processando tabelas, listas e formatações."""
+        if not texto:
+            return ""
+
+        # Processar tabelas primeiro (antes de converter newlines)
+        texto = self._processar_tabelas_para_html(texto)
+
+        # Processar listas
+        texto = self._processar_listas_para_html(texto)
+
+        # Processar formatações de texto
+        texto = self._processar_formatacoes_texto(texto)
+
+        # Converter múltiplas quebras de linha em uma única <br>
+        texto = re.sub(r'\n{2,}', '<br><br>', texto)
+        texto = texto.replace('\n', '<br>')
+
+        # Remover <br> redundantes ao redor de tabelas
+        texto = re.sub(r'(<br>)+(<table)', r'\2', texto)
+        texto = re.sub(r'(</table>)(<br>)+', r'\1', texto)
+
+        return texto
+
+    def _processar_tabelas_para_html(self, texto: str) -> str:
+        """Converte tabelas no formato [TABELA]...[/TABELA] para HTML."""
+        table_pattern = re.compile(
+            r'\[TABELA\]\s*\n(.*?)\[/TABELA\]',
+            re.DOTALL
+        )
+
+        def convert_table(match):
+            table_content = match.group(1).strip()
+            lines = table_content.split('\n')
+
+            if not lines:
+                return ''
+
+            html_lines = []
+            html_lines.append('<table style="width:80%; border-collapse:collapse; margin:10px auto; font-size:11px;">')
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                is_header = '[CABECALHO]' in line
+                if is_header:
+                    line = line.replace('[CABECALHO]', '').replace('[/CABECALHO]', '')
+
+                cells = [cell.strip() for cell in line.split('|')]
+
+                html_lines.append('<tr>')
+                for cell in cells:
+                    cell_html = self._processar_formatacao_celula_html(cell)
+                    if is_header:
+                        html_lines.append(f'<th style="border:1px solid #333; padding:2px 6px; background:#e0e0e0;">{cell_html}</th>')
+                    else:
+                        html_lines.append(f'<td style="border:1px solid #333; padding:2px 6px; text-align:center;">{cell_html}</td>')
+                html_lines.append('</tr>')
+
+            html_lines.append('</table>')
+            # Usar espaço vazio para juntar, evitando <br> extras após conversão
+            return ''.join(html_lines)
+
+        return table_pattern.sub(convert_table, texto)
+
+    def _processar_formatacao_celula_html(self, cell_text: str) -> str:
+        """Processa formatações de uma célula de tabela para HTML."""
+        result = cell_text
+
+        # Processar cor de fundo
+        color_pattern = re.compile(r'\[COR:#([a-fA-F0-9]{6})\](.*?)\[/COR\]', re.DOTALL)
+        color_match = color_pattern.search(result)
+        cell_style = ''
+        if color_match:
+            cell_color = color_match.group(1)
+            cell_style = f' style="background-color: #{cell_color};"'
+            result = color_pattern.sub(r'\2', result)
+
+        if cell_style:
+            result = f'<span{cell_style}>{result}</span>'
+
+        return result
+
+    def _processar_listas_para_html(self, texto: str) -> str:
+        """Converte listas visuais para HTML."""
+        lines = texto.split('\n')
+        result = []
+        in_list = False
+        list_type = None
+
+        itemize_symbols = r'[•○■□▸✓★–]'
+        itemize_pattern = re.compile(rf'^[ ]{{2,4}}({itemize_symbols})\s+(.+)$')
+        arabic_pattern = re.compile(r'^[ ]{2,4}(\d+)\.\s+(.+)$')
+        alpha_lower_pattern = re.compile(r'^[ ]{2,4}([a-z])\)\s+(.+)$')
+        alpha_upper_pattern = re.compile(r'^[ ]{2,4}([A-Z])\)\s+(.+)$')
+        roman_lower_pattern = re.compile(r'^[ ]{2,4}(i{1,3}|iv|vi{0,3}|ix|xi{0,3})\.\s+(.+)$')
+        roman_upper_pattern = re.compile(r'^[ ]{2,4}(I{1,3}|IV|VI{0,3}|IX|XI{0,3})\.\s+(.+)$')
+
+        def close_list():
+            nonlocal in_list, list_type
+            if in_list:
+                result.append(f'</{list_type}>')
+                in_list = False
+                list_type = None
+
+        for line in lines:
+            itemize_match = itemize_pattern.match(line)
+            if itemize_match:
+                if not in_list or list_type != 'ul':
+                    close_list()
+                    result.append('<ul style="margin:5px 0;padding-left:25px;">')
+                    in_list = True
+                    list_type = 'ul'
+                result.append(f'<li style="margin:2px 0;">{itemize_match.group(2)}</li>')
+                continue
+
+            arabic_match = arabic_pattern.match(line)
+            if arabic_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="margin:5px 0;padding-left:25px;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li style="margin:2px 0;">{arabic_match.group(2)}</li>')
+                continue
+
+            alpha_lower_match = alpha_lower_pattern.match(line)
+            if alpha_lower_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="margin:5px 0;padding-left:25px;list-style-type:lower-alpha;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li style="margin:2px 0;">{alpha_lower_match.group(2)}</li>')
+                continue
+
+            alpha_upper_match = alpha_upper_pattern.match(line)
+            if alpha_upper_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="margin:5px 0;padding-left:25px;list-style-type:upper-alpha;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li style="margin:2px 0;">{alpha_upper_match.group(2)}</li>')
+                continue
+
+            roman_lower_match = roman_lower_pattern.match(line)
+            if roman_lower_match and roman_lower_match.group(1).islower():
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="margin:5px 0;padding-left:25px;list-style-type:lower-roman;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li style="margin:2px 0;">{roman_lower_match.group(2)}</li>')
+                continue
+
+            roman_upper_match = roman_upper_pattern.match(line)
+            if roman_upper_match:
+                if not in_list or list_type != 'ol':
+                    close_list()
+                    result.append('<ol style="margin:5px 0;padding-left:25px;list-style-type:upper-roman;">')
+                    in_list = True
+                    list_type = 'ol'
+                result.append(f'<li style="margin:2px 0;">{roman_upper_match.group(2)}</li>')
+                continue
+
+            if line.strip() and in_list:
+                close_list()
+
+            result.append(line)
+
+        close_list()
+        # Juntar sem newlines para evitar <br> extras
+        return ''.join(result)
+
+    def _processar_formatacoes_texto(self, texto: str) -> str:
+        """Processa formatações de texto (negrito, itálico, etc.) para HTML."""
+        # Tags HTML simples já estão em HTML
+        # Processar comandos LaTeX
+        texto = re.sub(r'\\textbf\{([^}]*)\}', r'<b>\1</b>', texto)
+        texto = re.sub(r'\\textit\{([^}]*)\}', r'<i>\1</i>', texto)
+        texto = re.sub(r'\\underline\{([^}]*)\}', r'<u>\1</u>', texto)
+        texto = re.sub(r'\\textsuperscript\{([^}]*)\}', r'<sup>\1</sup>', texto)
+        texto = re.sub(r'\\textsubscript\{([^}]*)\}', r'<sub>\1</sub>', texto)
+
+        # Letras gregas
+        gregas = {
+            r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
+            r'\epsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ',
+            r'\iota': 'ι', r'\kappa': 'κ', r'\lambda': 'λ', r'\mu': 'μ',
+            r'\nu': 'ν', r'\xi': 'ξ', r'\pi': 'π', r'\rho': 'ρ',
+            r'\sigma': 'σ', r'\tau': 'τ', r'\upsilon': 'υ', r'\phi': 'φ',
+            r'\chi': 'χ', r'\psi': 'ψ', r'\omega': 'ω',
+            r'\Gamma': 'Γ', r'\Delta': 'Δ', r'\Theta': 'Θ', r'\Lambda': 'Λ',
+            r'\Xi': 'Ξ', r'\Pi': 'Π', r'\Sigma': 'Σ', r'\Upsilon': 'Υ',
+            r'\Phi': 'Φ', r'\Psi': 'Ψ', r'\Omega': 'Ω',
+        }
+        texto = re.sub(r'\$([^$]+)\$', r'\1', texto)
+        for latex, unicode_char in gregas.items():
+            texto = texto.replace(latex, unicode_char)
+
+        return texto
 
     def _update_save_button_state(self):
         # Validacao completa para habilitar o botao de salvar
