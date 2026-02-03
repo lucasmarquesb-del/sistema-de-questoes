@@ -72,6 +72,7 @@ class QuestionBankPage(QWidget):
     page_changed = pyqtSignal(int)
     question_selected = pyqtSignal(str)
     edit_question_requested = pyqtSignal(object)  # Emite questao_data para edição
+    create_variant_requested = pyqtSignal(object)  # Emite questao_data para criar variante
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -250,7 +251,7 @@ class QuestionBankPage(QWidget):
         main_layout.addLayout(pagination_layout)
 
     def _load_data(self, filters: Optional[Dict] = None):
-        """Load questions from the database."""
+        """Load questions from the database (only main questions, not variants)."""
         try:
             # Build filter dict for controller
             controller_filters = {}
@@ -269,14 +270,15 @@ class QuestionBankPage(QWidget):
                     # Se tags é uma lista de UUIDs, converter para nomes se necessário
                     controller_filters['tags'] = filters['tags']
 
-            # Fetch questions from database
-            self.questions_data = QuestaoControllerORM.listar_questoes(
+            # Fetch only main questions (not variants) from database
+            # This method includes 'quantidade_variantes' in each question dict
+            self.questions_data = QuestaoControllerORM.listar_questoes_principais(
                 controller_filters if controller_filters else None
             )
 
             # Filtrar apenas questões ativas
             self.questions_data = [q for q in self.questions_data if q.get('ativo', True)]
-            
+
             self.total_results = len(self.questions_data)
             self._update_ui()
 
@@ -426,12 +428,16 @@ class QuestionBankPage(QWidget):
         }
         difficulty = difficulty_map.get(dificuldade_str.upper() if dificuldade_str else 'MEDIO', DifficultyEnum.MEDIUM)
 
+        # Get variant count (available when using listar_questoes_principais)
+        variant_count = q_data.get('quantidade_variantes', 0)
+
         return QuestionCard(
             question_id=f"#{codigo}",
             title=titulo,
             formula=None,  # Não mostrar fórmulas no card para padronizar
             tags=tags[:3] if tags else [],  # Limit to 3 tags for display
             difficulty=difficulty,
+            variant_count=variant_count,
             parent=self
         )
 
@@ -495,6 +501,7 @@ class QuestionBankPage(QWidget):
             from src.views.pages.questao_preview_page import QuestaoPreview
             preview_dialog = QuestaoPreview(preview_data, parent=self)
             preview_dialog.edit_requested.connect(self._on_edit_question_requested)
+            preview_dialog.create_variant_requested.connect(self._on_create_variant_requested)
             preview_dialog.exec()
 
             # Emit signal for other components
@@ -1091,6 +1098,11 @@ class QuestionBankPage(QWidget):
         """Handler para abrir formulário de edição de questão."""
         # Emitir sinal para que a MainWindow abra o formulário de edição
         self.edit_question_requested.emit(questao_data)
+
+    def _on_create_variant_requested(self, questao_data: Dict):
+        """Handler para abrir formulário de criação de variante."""
+        # Emitir sinal para que a MainWindow abra o formulário de variante
+        self.create_variant_requested.emit(questao_data)
 
 
 if __name__ == '__main__':

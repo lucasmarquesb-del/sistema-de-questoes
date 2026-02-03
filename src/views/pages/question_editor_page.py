@@ -31,6 +31,9 @@ class QuestionEditorPage(QWidget):
         self.question_data = {} # Dictionary to hold all question data
         self.editing_question_id = None  # ID da questão em edição (None = criação)
         self.is_editing = False  # Modo de edição
+        self.is_variant = False  # Modo de criação de variante
+        self.original_data = None  # Dados da questão original (para variante)
+        self.original_codigo = None  # Código da questão original
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -461,9 +464,16 @@ class QuestionEditorPage(QWidget):
     def _update_save_button_state(self):
         # Validacao completa para habilitar o botao de salvar
         statement_ok = bool(self.editor_tab.statement_input.toPlainText().strip())
-        origin_ok = bool(self.editor_tab.origin_input.text().strip())
-        school_level_ok = bool(self.editor_tab.get_selected_school_level_uuid())
-        tags_ok = bool(self.question_data.get('tags'))
+
+        # No modo variante, campos herdados já estão preenchidos e desabilitados
+        if self.is_variant:
+            origin_ok = True
+            school_level_ok = True
+            tags_ok = True
+        else:
+            origin_ok = bool(self.editor_tab.origin_input.text().strip())
+            school_level_ok = bool(self.editor_tab.get_selected_school_level_uuid())
+            tags_ok = bool(self.question_data.get('tags'))
 
         # Verificar alternativa correta se for objetiva
         correct_alt_ok = True
@@ -522,6 +532,11 @@ class QuestionEditorPage(QWidget):
         # Atualizar dados antes de validar
         self._update_question_data()
 
+        # Se é modo variante, usar fluxo específico
+        if self.is_variant:
+            self._save_variant()
+            return
+
         # Validar questao
         valido, erro = self._validate_question()
         if not valido:
@@ -574,6 +589,96 @@ class QuestionEditorPage(QWidget):
         self.save_requested.emit(self.question_data)
         self.status_label.setText("Questão salva com sucesso!")
 
+    def _save_variant(self):
+        """Salva a questão como variante (criação ou edição)."""
+        from src.controllers.questao_controller_orm import QuestaoControllerORM
+
+        # Validar apenas campos editáveis
+        if not self.editor_tab.statement_input.toPlainText().strip():
+            QMessageBox.warning(self, "Validacao", "O enunciado da questao e obrigatorio.")
+            return
+
+        # Verificar alternativa correta (apenas para objetivas)
+        tipo = self.original_data.get('tipo', 'OBJETIVA') if self.original_data else 'OBJETIVA'
+        if tipo == 'OBJETIVA':
+            has_correct = any(
+                alt_widget.radio_button.isChecked()
+                for alt_widget in self.editor_tab.alternatives_widgets
+            )
+            if not has_correct:
+                QMessageBox.warning(self, "Validacao", "E necessario marcar uma alternativa como correta.")
+                return
+
+            # Verificar se todas as alternativas tem texto
+            empty_alts = []
+            for alt_widget in self.editor_tab.alternatives_widgets:
+                if not alt_widget.text_input.text().strip():
+                    letra = alt_widget.radio_button.text()
+                    empty_alts.append(letra)
+            if empty_alts:
+                QMessageBox.warning(self, "Validacao", f"As alternativas {', '.join(empty_alts)} estao vazias.")
+                return
+
+        # Coletar dados editáveis
+        enunciado = self.editor_tab.statement_input.toPlainText()
+
+        # Coletar alternativas
+        alternativas = []
+        if tipo == 'OBJETIVA':
+            for i, alt_widget in enumerate(self.editor_tab.alternatives_widgets):
+                letra = chr(ord('A') + i)
+                alternativas.append({
+                    'letra': letra,
+                    'texto': alt_widget.text_input.text().strip(),
+                    'correta': alt_widget.radio_button.isChecked()
+                })
+
+        # Resolução (gabarito discursivo)
+        resolucao = self.editor_tab.answer_key_input.toPlainText() or None
+
+        try:
+            if self.is_editing:
+                # Edição de variante existente - atualizar apenas campos editáveis
+                resultado = QuestaoControllerORM.atualizar_questao(
+                    self.editing_question_id,
+                    enunciado=enunciado,
+                    alternativas=alternativas if tipo == 'OBJETIVA' else None
+                )
+
+                if resultado:
+                    self.status_label.setText(f"Variante {self.editing_question_id} atualizada com sucesso!")
+                    self.question_data['codigo_variante'] = self.editing_question_id
+                    self.question_data['is_variant'] = True
+                    self.question_data['is_editing'] = True
+                    self.save_requested.emit(self.question_data)
+                else:
+                    QMessageBox.warning(self, "Falha", "Nao foi possivel atualizar a variante.")
+            else:
+                # Criação de nova variante
+                resultado = QuestaoControllerORM.criar_variante(
+                    codigo_original=self.original_codigo,
+                    enunciado=enunciado,
+                    alternativas=alternativas if tipo == 'OBJETIVA' else None,
+                    resolucao=resolucao,
+                    observacoes=None
+                )
+
+                if resultado:
+                    codigo_variante = resultado.get('codigo', 'N/A')
+                    self.status_label.setText(f"Variante {codigo_variante} criada com sucesso!")
+                    self.question_data['codigo_variante'] = codigo_variante
+                    self.question_data['is_variant'] = True
+                    self.save_requested.emit(self.question_data)
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Falha",
+                        "Nao foi possivel criar a variante.\nVerifique se a questao original ja possui 3 variantes."
+                    )
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao salvar variante: {str(e)}")
+
     def _on_tab_changed(self, index: int):
         if self.tab_widget.widget(index) == self.preview_tab:
             self._update_preview()
@@ -621,9 +726,23 @@ class QuestionEditorPage(QWidget):
 
     def load_question_for_editing(self, questao_data: dict):
         """Carrega dados de uma questão para edição."""
+        from src.controllers.questao_controller_orm import QuestaoControllerORM
+
         self.is_editing = True
         self.editing_question_id = questao_data.get('codigo') or questao_data.get('id')
-        self.title_label.setText(f"MathBank / Editar Questão #{self.editing_question_id}")
+
+        # Verificar se esta questão é uma variante
+        self.is_variant = QuestaoControllerORM.eh_variante(self.editing_question_id)
+        if self.is_variant:
+            original = QuestaoControllerORM.obter_questao_original(self.editing_question_id)
+            self.original_codigo = original.get('codigo') if original else None
+            self.original_data = questao_data  # Usar os dados atuais como referência
+            self.title_label.setText(f"MathBank / Editar Variante #{self.editing_question_id}")
+        else:
+            self.is_variant = False
+            self.original_codigo = None
+            self.original_data = None
+            self.title_label.setText(f"MathBank / Editar Questão #{self.editing_question_id}")
 
         # Preencher campos do editor
         self.editor_tab.academic_year_input.setText(str(questao_data.get('ano', '')))
@@ -694,16 +813,63 @@ class QuestionEditorPage(QWidget):
             self.tags_tab.set_selected_tags(tag_uuids)
             self.question_data['tags'] = tag_uuids
 
+        # Se é variante, desabilitar campos herdados
+        if self.is_variant:
+            self._disable_inherited_fields()
+
         # Atualizar dados internos
         self._update_question_data()
         self._update_save_button_state()
+
+    def _disable_inherited_fields(self):
+        """Desabilita campos herdados quando editando/criando variante."""
+        # Ano
+        self.editor_tab.academic_year_input.setEnabled(False)
+        self.editor_tab.academic_year_input.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+        # Fonte/Origem
+        self.editor_tab.origin_input.setEnabled(False)
+        self.editor_tab.origin_input.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+        # Nível escolar
+        self.editor_tab.school_level_combo.setEnabled(False)
+        self.editor_tab.school_level_combo.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+        # Tipo de questão
+        self.editor_tab.objective_radio.setEnabled(False)
+        self.editor_tab.discursive_radio.setEnabled(False)
+
+        # Dificuldade
+        self.editor_tab.difficulty_easy.setEnabled(False)
+        self.editor_tab.difficulty_medium.setEnabled(False)
+        self.editor_tab.difficulty_hard.setEnabled(False)
+
+        # Tags
+        self.tags_tab.setEnabled(False)
 
     def clear_form(self):
         """Limpa o formulário para criação de nova questão."""
         self.is_editing = False
         self.editing_question_id = None
+        self.is_variant = False
+        self.original_data = None
+        self.original_codigo = None
         self.title_label.setText("MathBank / Criar Questão")
         self.question_data = {}
+
+        # Reabilitar campos que podem ter sido desabilitados no modo variante
+        self.editor_tab.academic_year_input.setEnabled(True)
+        self.editor_tab.academic_year_input.setStyleSheet("")
+        self.editor_tab.origin_input.setEnabled(True)
+        self.editor_tab.origin_input.setStyleSheet("")
+        self.editor_tab.school_level_combo.setEnabled(True)
+        self.editor_tab.school_level_combo.setStyleSheet("")
+        self.editor_tab.objective_radio.setEnabled(True)
+        self.editor_tab.discursive_radio.setEnabled(True)
+        self.editor_tab.difficulty_easy.setEnabled(True)
+        self.editor_tab.difficulty_medium.setEnabled(True)
+        self.editor_tab.difficulty_hard.setEnabled(True)
+        self.tags_tab.setEnabled(True)
 
         # Limpar campos do editor
         self.editor_tab.academic_year_input.clear()
@@ -735,6 +901,91 @@ class QuestionEditorPage(QWidget):
         self.tags_tab.clear_selection()
 
         # Atualizar estado do botão salvar
+        self._update_save_button_state()
+
+    def load_question_for_variant(self, questao_data: dict):
+        """Carrega dados de uma questão para criar variante."""
+        self.is_variant = True
+        self.is_editing = False
+        self.editing_question_id = None
+        self.original_data = questao_data
+        self.original_codigo = questao_data.get('codigo') or questao_data.get('id')
+        self.title_label.setText(f"MathBank / Criar Variante de {self.original_codigo}")
+
+        # Preencher campos herdados
+        self.editor_tab.academic_year_input.setText(str(questao_data.get('ano', '')))
+        self.editor_tab.origin_input.setText(questao_data.get('fonte', '') or '')
+
+        # Carregar nível escolar
+        niveis = questao_data.get('niveis_escolares', [])
+        if niveis:
+            nivel = niveis[0] if isinstance(niveis, list) else niveis
+            nivel_uuid = nivel.get('uuid') if isinstance(nivel, dict) else nivel
+            self.editor_tab.set_school_level_by_uuid(nivel_uuid)
+
+        # Tipo de questão
+        tipo = questao_data.get('tipo', 'OBJETIVA')
+        if tipo == 'OBJETIVA':
+            self.editor_tab.objective_radio.setChecked(True)
+            self.editor_tab.current_question_type = "objective"
+        else:
+            self.editor_tab.discursive_radio.setChecked(True)
+            self.editor_tab.current_question_type = "discursive"
+        self.editor_tab._update_visibility_by_question_type()
+
+        # Dificuldade
+        dificuldade = questao_data.get('dificuldade', '')
+        if dificuldade:
+            dif_map = {'FACIL': 1, 'MEDIO': 2, 'DIFICIL': 3}
+            dif_id = dif_map.get(dificuldade.upper(), 0)
+            if dif_id == 1:
+                self.editor_tab.difficulty_easy.setChecked(True)
+            elif dif_id == 2:
+                self.editor_tab.difficulty_medium.setChecked(True)
+            elif dif_id == 3:
+                self.editor_tab.difficulty_hard.setChecked(True)
+
+        # Campos EDITÁVEIS - pré-preencher com dados da original
+        # Enunciado
+        self.editor_tab.statement_input.setPlainText(questao_data.get('enunciado', '') or '')
+
+        # Alternativas (se objetiva) - EDITÁVEIS
+        if tipo == 'OBJETIVA':
+            alternativas = questao_data.get('alternativas', [])
+            for i, alt in enumerate(alternativas):
+                if i < len(self.editor_tab.alternatives_widgets):
+                    widget = self.editor_tab.alternatives_widgets[i]
+                    texto = alt.get('texto', '') if isinstance(alt, dict) else ''
+                    correta = alt.get('correta', False) if isinstance(alt, dict) else False
+                    widget.text_input.setText(texto)
+                    if correta:
+                        widget.radio_button.setChecked(True)
+
+        # Resposta discursiva - EDITÁVEL
+        resposta = questao_data.get('resposta', {})
+        if resposta and resposta.get('gabarito_discursivo'):
+            self.editor_tab.answer_key_input.setPlainText(resposta.get('gabarito_discursivo', ''))
+
+        # Tags - herdadas (NÃO editáveis)
+        tags = questao_data.get('tags', [])
+        tag_uuids = []
+        for tag in tags:
+            if isinstance(tag, dict):
+                uuid = tag.get('uuid')
+                if uuid:
+                    tag_uuids.append(uuid)
+            elif isinstance(tag, str):
+                tag_uuids.append(tag)
+
+        if tag_uuids:
+            self.tags_tab.set_selected_tags(tag_uuids)
+            self.question_data['tags'] = tag_uuids
+
+        # Desabilitar campos herdados
+        self._disable_inherited_fields()
+
+        # Atualizar dados internos
+        self._update_question_data()
         self._update_save_button_state()
 
 

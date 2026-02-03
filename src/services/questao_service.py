@@ -458,3 +458,261 @@ class QuestaoService:
     def obter_estatisticas(self) -> Dict[str, Any]:
         """Retorna estatísticas sobre questões"""
         return self.questao_repo.estatisticas()
+
+    # =========================================================================
+    # Métodos para gerenciamento de variantes (questões semelhantes)
+    # =========================================================================
+
+    def criar_variante(
+        self,
+        codigo_original: str,
+        enunciado: str,
+        alternativas: Optional[List[Dict[str, Any]]] = None,
+        resolucao: Optional[str] = None,
+        observacoes: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Cria uma variante de uma questão existente.
+        A variante herda: tipo, fonte, ano, dificuldade, série/nível, disciplina, tags.
+        Permite modificar: enunciado, alternativas, resolução, observações.
+
+        Args:
+            codigo_original: Código da questão original
+            enunciado: Novo enunciado da variante
+            alternativas: Novas alternativas (para objetivas)
+            resolucao: Nova resolução
+            observacoes: Novas observações
+
+        Returns:
+            Dict com dados da variante criada ou None se erro
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Buscar questão original
+        questao_original = self.questao_repo.buscar_por_codigo(codigo_original)
+        if not questao_original:
+            logger.warning(f"Questão original {codigo_original} não encontrada")
+            return None
+
+        # Verificar se a original já é uma variante (não pode criar variante de variante)
+        if self.questao_repo.eh_variante(questao_original.uuid):
+            logger.warning(f"Questão {codigo_original} é uma variante. Não é possível criar variante de variante.")
+            return None
+
+        # Verificar limite de 3 variantes
+        num_variantes = self.questao_repo.contar_variantes(questao_original.uuid)
+        if num_variantes >= 3:
+            logger.warning(f"Questão {codigo_original} já possui 3 variantes (limite máximo)")
+            return None
+
+        # Obter dados herdados da original
+        tipo_codigo = questao_original.tipo.codigo if questao_original.tipo else 'OBJETIVA'
+        fonte_sigla = questao_original.fonte.sigla if questao_original.fonte else None
+        ano = questao_original.ano.ano if questao_original.ano else None
+        dificuldade_codigo = questao_original.dificuldade.codigo if questao_original.dificuldade else None
+        tags_uuids = [tag.uuid for tag in questao_original.tags if tag.ativo]
+
+        # Gerar título automático com indicação de variante
+        titulo_base = questao_original.titulo or ""
+        num_variante = num_variantes + 1
+        if titulo_base:
+            titulo = f"{titulo_base} (Variante {num_variante})"
+        else:
+            partes = []
+            if fonte_sigla:
+                partes.append(fonte_sigla)
+            if tags_uuids:
+                # Pegar primeira tag de conteúdo
+                for tag in questao_original.tags:
+                    if tag.ativo and tag.numeracao and tag.numeracao[0].isdigit():
+                        partes.append(tag.nome.upper())
+                        break
+            if ano:
+                partes.append(str(ano))
+            partes.append(f"(Variante {num_variante})")
+            titulo = " - ".join(partes) if partes else f"Variante {num_variante}"
+
+        # Criar a variante
+        variante = self.questao_repo.criar_questao_completa(
+            codigo_tipo=tipo_codigo,
+            enunciado=enunciado,
+            titulo=titulo,
+            sigla_fonte=fonte_sigla,
+            ano=ano,
+            codigo_dificuldade=dificuldade_codigo,
+            observacoes=observacoes
+        )
+
+        if not variante:
+            logger.error("Falha ao criar questão variante")
+            return None
+
+        # Adicionar tags herdadas
+        for tag_uuid in tags_uuids:
+            tag = self.tag_repo.buscar_por_uuid(tag_uuid)
+            if tag:
+                variante.adicionar_tag(self.session, tag)
+
+        # Copiar níveis escolares
+        for nivel in questao_original.niveis_escolares:
+            variante.adicionar_nivel(nivel)
+
+        # Adicionar alternativas (apenas para objetivas)
+        alternativas_criadas = []
+        alternativa_correta_uuid = None
+        if alternativas and tipo_codigo == 'OBJETIVA':
+            letra_ordem = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5}
+            for alt_data in alternativas:
+                alternativa = self.alternativa_repo.criar(
+                    uuid_questao=variante.uuid,
+                    letra=alt_data['letra'],
+                    ordem=letra_ordem.get(alt_data['letra'], 1),
+                    texto=alt_data['texto'],
+                    uuid_imagem=alt_data.get('uuid_imagem'),
+                    escala_imagem=alt_data.get('escala_imagem', 1.0)
+                )
+                alternativas_criadas.append(alternativa)
+                if alt_data.get('correta'):
+                    alternativa_correta_uuid = alternativa.uuid
+
+        # Criar resposta objetiva
+        if tipo_codigo == 'OBJETIVA' and alternativa_correta_uuid:
+            self.resposta_repo.criar_resposta_objetiva(
+                codigo_questao=variante.codigo,
+                uuid_alternativa_correta=alternativa_correta_uuid,
+                resolucao=resolucao
+            )
+
+        # Criar vínculo de versão
+        self.questao_repo.criar_vinculo_versao(
+            uuid_original=questao_original.uuid,
+            uuid_variante=variante.uuid,
+            observacao=f"Variante {num_variante} criada"
+        )
+
+        self.session.flush()
+
+        return {
+            'codigo': variante.codigo,
+            'uuid': variante.uuid,
+            'titulo': variante.titulo,
+            'tipo': tipo_codigo,
+            'enunciado': variante.enunciado,
+            'codigo_original': codigo_original,
+            'numero_variante': num_variante
+        }
+
+    def listar_questoes_principais(self, filtros: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Lista questões que NÃO são variantes, incluindo contagem de variantes.
+
+        Args:
+            filtros: Dict com filtros opcionais
+
+        Returns:
+            Lista de dicts com dados das questões principais
+        """
+        questoes = self.questao_repo.listar_questoes_principais(filtros)
+
+        resultado = []
+        for q in questoes:
+            # Contar variantes desta questão
+            num_variantes = self.questao_repo.contar_variantes(q.uuid)
+
+            resultado.append({
+                'id': hash(q.uuid) % 2147483647,
+                'codigo': q.codigo,
+                'uuid': q.uuid,
+                'titulo': q.titulo,
+                'enunciado': q.enunciado,
+                'tipo': q.tipo.codigo if q.tipo else None,
+                'ano': q.ano.ano if q.ano else None,
+                'fonte': q.fonte.sigla if q.fonte else None,
+                'dificuldade': q.dificuldade.codigo if q.dificuldade else None,
+                'tags': [tag.nome for tag in q.tags if tag.ativo],
+                'ativo': q.ativo,
+                'quantidade_variantes': num_variantes
+            })
+
+        return resultado
+
+    def obter_variantes(self, codigo: str) -> List[Dict[str, Any]]:
+        """
+        Obtém lista de variantes de uma questão.
+
+        Args:
+            codigo: Código da questão original
+
+        Returns:
+            Lista de dicts com dados resumidos das variantes
+        """
+        questao = self.questao_repo.buscar_por_codigo(codigo)
+        if not questao:
+            return []
+
+        variantes = self.questao_repo.buscar_variantes(questao.uuid)
+
+        return [
+            {
+                'codigo': v.codigo,
+                'uuid': v.uuid,
+                'titulo': v.titulo or '',
+                'enunciado': (v.enunciado[:100] + '...' if len(v.enunciado or '') > 100 else v.enunciado) or ''
+            }
+            for v in variantes
+        ]
+
+    def obter_original(self, codigo: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtém a questão original de uma variante.
+
+        Args:
+            codigo: Código da questão variante
+
+        Returns:
+            Dict com dados da questão original ou None se não for variante
+        """
+        questao = self.questao_repo.buscar_por_codigo(codigo)
+        if not questao:
+            return None
+
+        original = self.questao_repo.buscar_original(questao.uuid)
+        if not original:
+            return None
+
+        return {
+            'codigo': original.codigo,
+            'uuid': original.uuid,
+            'titulo': original.titulo
+        }
+
+    def eh_variante(self, codigo: str) -> bool:
+        """
+        Verifica se uma questão é variante de outra.
+
+        Args:
+            codigo: Código da questão
+
+        Returns:
+            True se for variante, False caso contrário
+        """
+        questao = self.questao_repo.buscar_por_codigo(codigo)
+        if not questao:
+            return False
+        return self.questao_repo.eh_variante(questao.uuid)
+
+    def contar_variantes(self, codigo: str) -> int:
+        """
+        Conta quantas variantes uma questão possui.
+
+        Args:
+            codigo: Código da questão
+
+        Returns:
+            Número de variantes
+        """
+        questao = self.questao_repo.buscar_por_codigo(codigo)
+        if not questao:
+            return 0
+        return self.questao_repo.contar_variantes(questao.uuid)

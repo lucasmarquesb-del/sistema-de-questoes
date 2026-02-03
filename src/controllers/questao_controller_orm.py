@@ -224,3 +224,141 @@ class QuestaoControllerORM:
         except Exception as e:
             print(f"Erro ao obter estatísticas: {e}")
             return {}
+
+    # =========================================================================
+    # Métodos para gerenciamento de variantes (questões semelhantes)
+    # =========================================================================
+
+    @staticmethod
+    def criar_variante(
+        codigo_original: str,
+        enunciado: str,
+        alternativas: Optional[List[Dict[str, Any]]] = None,
+        resolucao: Optional[str] = None,
+        observacoes: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Cria uma variante de uma questão existente.
+
+        A variante herda automaticamente: tipo, fonte, ano, dificuldade, tags.
+        O usuário pode modificar: enunciado, alternativas, resolução, observações.
+
+        Args:
+            codigo_original: Código da questão original (Q-XXXX-YYYY)
+            enunciado: Novo enunciado da variante
+            alternativas: Lista de alternativas (para objetivas)
+            resolucao: Resolução da variante
+            observacoes: Observações
+
+        Returns:
+            Dict com dados da variante criada ou None se erro
+
+        Exemplo:
+            variante = QuestaoControllerORM.criar_variante(
+                codigo_original='Q-2026-0001',
+                enunciado='Enunciado modificado...',
+                alternativas=[
+                    {'letra': 'A', 'texto': 'Opção A', 'correta': False},
+                    {'letra': 'B', 'texto': 'Opção B', 'correta': True},
+                    ...
+                ]
+            )
+        """
+        try:
+            with services.transaction() as svc:
+                return svc.questao.criar_variante(
+                    codigo_original=codigo_original,
+                    enunciado=enunciado,
+                    alternativas=alternativas,
+                    resolucao=resolucao,
+                    observacoes=observacoes
+                )
+        except Exception as e:
+            print(f"Erro ao criar variante: {e}")
+            return None
+
+    @staticmethod
+    def listar_questoes_principais(filtros: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Lista apenas questões principais (que NÃO são variantes).
+        Inclui contagem de variantes de cada questão.
+
+        Args:
+            filtros: Dict com filtros opcionais
+
+        Returns:
+            Lista de dicts com dados das questões, incluindo 'quantidade_variantes'
+        """
+        try:
+            return services.questao.listar_questoes_principais(filtros)
+        except Exception as e:
+            print(f"Erro ao listar questões principais: {e}")
+            return []
+
+    @staticmethod
+    def listar_variantes(codigo: str) -> List[Dict[str, Any]]:
+        """
+        Lista todas as variantes de uma questão.
+
+        Args:
+            codigo: Código da questão original (Q-XXXX-YYYY)
+
+        Returns:
+            Lista de dicts com dados resumidos das variantes
+        """
+        try:
+            return services.questao.obter_variantes(codigo)
+        except Exception as e:
+            print(f"Erro ao listar variantes: {e}")
+            return []
+
+    @staticmethod
+    def obter_questao_original(codigo: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtém a questão original de uma variante.
+
+        Args:
+            codigo: Código da questão variante
+
+        Returns:
+            Dict com dados da questão original ou None se não for variante
+        """
+        try:
+            return services.questao.obter_original(codigo)
+        except Exception as e:
+            print(f"Erro ao obter questão original: {e}")
+            return None
+
+    @staticmethod
+    def eh_variante(codigo: str) -> bool:
+        """
+        Verifica se uma questão é variante de outra.
+
+        Args:
+            codigo: Código da questão
+
+        Returns:
+            True se for variante, False caso contrário
+        """
+        try:
+            return services.questao.eh_variante(codigo)
+        except Exception as e:
+            print(f"Erro ao verificar se é variante: {e}")
+            return False
+
+    @staticmethod
+    def contar_variantes(codigo: str) -> int:
+        """
+        Conta quantas variantes uma questão possui.
+
+        Args:
+            codigo: Código da questão
+
+        Returns:
+            Número de variantes (0-3)
+        """
+        try:
+            return services.questao.contar_variantes(codigo)
+        except Exception as e:
+            print(f"Erro ao contar variantes: {e}")
+            return 0

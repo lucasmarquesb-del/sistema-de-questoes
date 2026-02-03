@@ -108,14 +108,14 @@ class QuestionCard(BaseCard):
     """
     Card to display a question summary (code, title, formula, tags).
     """
-    def __init__(self, question_id: str, title: str, formula: str = None, tags: list = None, difficulty: DifficultyEnum = None, parent=None):
+    def __init__(self, question_id: str, title: str, formula: str = None, tags: list = None, difficulty: DifficultyEnum = None, variant_count: int = 0, parent=None):
         super().__init__(parent, object_name="question_card")
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         main_layout.setSpacing(Spacing.SM)
 
-        # Header: Question ID and Options
+        # Header: Question ID, Variant Badge and Options
         header_layout = QHBoxLayout()
         question_id_label = QLabel(question_id)
         question_id_label.setObjectName("card_id")
@@ -128,6 +128,22 @@ class QuestionCard(BaseCard):
             }}
         """)
         header_layout.addWidget(question_id_label)
+
+        # Variant count badge
+        if variant_count > 0:
+            variant_text = f"({variant_count} variante{'s' if variant_count > 1 else ''})"
+            variant_label = QLabel(variant_text)
+            variant_label.setObjectName("variant_badge")
+            variant_label.setStyleSheet(f"""
+                QLabel#variant_badge {{
+                    color: {Color.GRAY_TEXT};
+                    font-size: {Typography.FONT_SIZE_SM};
+                    font-weight: {Typography.FONT_WEIGHT_MEDIUM};
+                    padding-left: {Spacing.XS}px;
+                }}
+            """)
+            header_layout.addWidget(variant_label)
+
         header_layout.addStretch()
         # Add placeholders for card_type and card_menu if needed, e.g., icon buttons
         # header_layout.addWidget(QLabel("Type")) # Placeholder

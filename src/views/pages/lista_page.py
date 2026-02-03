@@ -60,10 +60,10 @@ class ListaPage(QWidget):
         btn_editar_lista = QPushButton("Editar Selecionada")
         btn_editar_lista.clicked.connect(self.abrir_form_edicao_lista)
         action_layout.addWidget(btn_editar_lista)
-        btn_deletar_lista = QPushButton("Deletar Selecionada")
-        btn_deletar_lista.setStyleSheet("color: #e74c3c;")
-        btn_deletar_lista.clicked.connect(self.deletar_lista_selecionada)
-        action_layout.addWidget(btn_deletar_lista)
+        btn_inativar_lista = QPushButton("Inativar Selecionada")
+        btn_inativar_lista.setStyleSheet("color: #e74c3c;")
+        btn_inativar_lista.clicked.connect(self.inativar_lista_selecionada)
+        action_layout.addWidget(btn_inativar_lista)
         layout.addLayout(action_layout)
 
     def load_listas(self):
@@ -107,11 +107,11 @@ class ListaPage(QWidget):
         dialog.listaSaved.connect(self.load_listas)
         dialog.exec()
 
-    def deletar_lista_selecionada(self):
-        """Deleta a lista selecionada apos confirmacao."""
+    def inativar_lista_selecionada(self):
+        """Inativa a lista selecionada apos confirmacao."""
         item_selecionado = self.lista_widget.currentItem()
         if not item_selecionado or item_selecionado.data(Qt.ItemDataRole.UserRole) is None:
-            QMessageBox.warning(self, "Atencao", "Por favor, selecione uma lista para deletar.")
+            QMessageBox.warning(self, "Atencao", "Por favor, selecione uma lista para inativar.")
             return
 
         id_lista = item_selecionado.data(Qt.ItemDataRole.UserRole)
@@ -119,8 +119,8 @@ class ListaPage(QWidget):
 
         reply = QMessageBox.question(
             self,
-            "Confirmar Delecao",
-            f"Tem certeza que deseja deletar a lista '{titulo}'?\n\nEsta acao nao pode ser desfeita.",
+            "Confirmar Inativacao",
+            f"Tem certeza que deseja inativar a lista '{titulo}'?\n\nA lista ficara oculta mas podera ser reativada posteriormente.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -128,12 +128,12 @@ class ListaPage(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 if self.controller.deletar_lista(id_lista):
-                    ErrorHandler.show_success(self, "Sucesso", "Lista deletada com sucesso.")
+                    ErrorHandler.show_success(self, "Sucesso", "Lista inativada com sucesso.")
                     self.load_listas()
                 else:
-                    ErrorHandler.show_error(self, "Erro", "Nao foi possivel deletar a lista.")
+                    ErrorHandler.show_error(self, "Erro", "Nao foi possivel inativar a lista.")
             except Exception as e:
-                ErrorHandler.handle_exception(self, e, "Erro ao deletar lista.")
+                ErrorHandler.handle_exception(self, e, "Erro ao inativar lista.")
 
     def abrir_dialogo_exportacao(self):
         """Abre o dialogo de exportacao para a lista selecionada."""

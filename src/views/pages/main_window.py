@@ -107,6 +107,9 @@ class MainWindow(QMainWindow):
         # Conectar sinal de edição do banco de questões
         self.question_bank_page.edit_question_requested.connect(self._on_edit_question_requested)
 
+        # Conectar sinal de criar variante do banco de questões
+        self.question_bank_page.create_variant_requested.connect(self._on_create_variant_requested)
+
         # Inicializar controller de questões
         self.questao_controller = criar_questao_controller()
 
@@ -162,8 +165,21 @@ class MainWindow(QMainWindow):
         self._set_current_page(PageEnum.QUESTION_BANK)
 
     def _on_question_save_requested(self, question_data: dict):
-        """Handler para salvar questão do editor (criação ou edição)."""
+        """Handler para salvar questão do editor (criação, edição ou variante)."""
         try:
+            # Se é variante, o salvamento já foi feito no editor
+            if question_data.get('is_variant'):
+                codigo_variante = question_data.get('codigo_variante', 'N/A')
+                if question_data.get('is_editing'):
+                    self.toast.show_message(f"Variante {codigo_variante} atualizada com sucesso!", "success")
+                else:
+                    self.toast.show_message(f"Variante {codigo_variante} criada com sucesso!", "success")
+                self.question_editor_page.clear_form()
+                if hasattr(self.question_bank_page, 'refresh_data'):
+                    self.question_bank_page.refresh_data()
+                self._set_current_page(PageEnum.QUESTION_BANK)
+                return
+
             # Verificar se é edição ou criação
             is_editing = self.question_editor_page.is_editing
             editing_id = self.question_editor_page.editing_question_id
@@ -256,6 +272,17 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.toast.show_message(f"Erro ao abrir editor: {str(e)}", "error")
+
+    def _on_create_variant_requested(self, questao_data: dict):
+        """Handler para abrir editor para criação de variante."""
+        try:
+            # Carregar dados no editor em modo variante
+            self.question_editor_page.load_question_for_variant(questao_data)
+            # Navegar para a página do editor
+            self._set_current_page(PageEnum.QUESTION_EDITOR)
+
+        except Exception as e:
+            self.toast.show_message(f"Erro ao abrir editor de variante: {str(e)}", "error")
 
     # def _update_sidebar_visibility(self, page_enum: PageEnum):
     #     """Shows or hides the sidebar based on the current page."""

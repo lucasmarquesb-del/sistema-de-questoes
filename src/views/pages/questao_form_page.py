@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QComboBox, QScrollArea, QGroupBox, QRadioButton,
     QButtonGroup, QSpinBox, QTextEdit, QTabWidget, QWidget,
     QCheckBox, QMessageBox, QInputDialog, QCompleter, QListWidget,
-    QListWidgetItem, QAbstractItemView
+    QListWidgetItem, QAbstractItemView, QFrame
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 import logging
@@ -28,19 +28,39 @@ class QuestaoFormPage(QDialog):
     """
     Formulario para criar/editar questoes.
     Suporta questoes objetivas e discursivas.
+    Suporta modo variante para criar questões semelhantes.
     """
     questaoSaved = pyqtSignal(object)
 
-    def __init__(self, questao_id=None, parent=None):
+    def __init__(self, questao_id=None, parent=None, is_variant=False, original_data=None):
+        """
+        Inicializa o formulário de questão.
+
+        Args:
+            questao_id: ID da questão para edição (None para nova questão)
+            parent: Widget pai
+            is_variant: Se True, está criando uma variante
+            original_data: Dados da questão original (quando is_variant=True)
+        """
         super().__init__(parent)
         self.questao_id = questao_id
         self.is_editing = questao_id is not None
+        self.is_variant = is_variant
+        self.original_data = original_data
+        self.original_codigo = original_data.get('codigo') if original_data else None
 
         # Inicializar controllers
         self.controller = criar_questao_controller()
         self.tag_controller = criar_tag_controller()
 
-        self.setWindowTitle("Editar Questao" if self.is_editing else "Nova Questao")
+        # Definir título da janela
+        if self.is_variant:
+            self.setWindowTitle(f"Criar Variante de {self.original_codigo}")
+        elif self.is_editing:
+            self.setWindowTitle("Editar Questao")
+        else:
+            self.setWindowTitle("Nova Questao")
+
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
 
@@ -52,13 +72,45 @@ class QuestaoFormPage(QDialog):
 
         if self.is_editing:
             self.load_questao_data(questao_id)
+        elif self.is_variant and self.original_data:
+            self._load_variant_data()
 
-        logger.info(f"QuestaoFormPage inicializado (ID: {questao_id})")
+        logger.info(f"QuestaoFormPage inicializado (ID: {questao_id}, is_variant: {is_variant})")
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+
+        # Banner para modo variante
+        if self.is_variant and self.original_codigo:
+            variant_banner = QFrame(self)
+            variant_banner.setStyleSheet("""
+                QFrame {
+                    background-color: #d1ecf1;
+                    border: 1px solid #17a2b8;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                }
+            """)
+            variant_banner_layout = QHBoxLayout(variant_banner)
+            variant_banner_layout.setContentsMargins(15, 10, 15, 10)
+            variant_icon = QLabel("📋")
+            variant_icon.setStyleSheet("font-size: 18px;")
+            variant_banner_layout.addWidget(variant_icon)
+            variant_info = QLabel(f"<b>Criando variante de {self.original_codigo}</b><br>"
+                                 f"<small>Campos herdados (tipo, fonte, ano, dificuldade, série, tags) não podem ser alterados.</small>")
+            variant_info.setStyleSheet("color: #0c5460; font-size: 12px;")
+            variant_banner_layout.addWidget(variant_info)
+            variant_banner_layout.addStretch()
+            layout.addWidget(variant_banner)
+
         header_layout = QHBoxLayout()
-        title_label = QLabel("Nova Questao" if not self.is_editing else "Editar Questao")
+        if self.is_variant:
+            title_label = QLabel(f"Criar Variante de {self.original_codigo}")
+        elif self.is_editing:
+            title_label = QLabel("Editar Questao")
+        else:
+            title_label = QLabel("Nova Questao")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
@@ -427,6 +479,147 @@ class QuestaoFormPage(QDialog):
             ErrorHandler.handle_exception(self, e, f"Erro ao carregar dados da questao {questao_id}")
             self.close()
 
+    def _load_variant_data(self):
+        """Carrega dados da questão original para criar variante."""
+        logger.info(f"Carregando dados da questao original {self.original_codigo} para criar variante.")
+
+        try:
+            # Usar original_data passado na inicialização
+            dto = self.original_data
+            if not dto:
+                QMessageBox.critical(self, "Erro", "Nao foi possivel carregar a questao original.")
+                self.close()
+                return
+
+            # Campos herdados (NÃO editáveis) - desabilitar e preencher
+            # Título será gerado automaticamente
+            self.titulo_input.setText("")
+            self.titulo_input.setPlaceholderText("Titulo sera gerado automaticamente")
+            self.titulo_input.setEnabled(False)
+            self.titulo_input.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+            # Ano
+            ano = dto.get('ano') or 2026
+            self.ano_spin.setValue(ano)
+            self.ano_spin.setEnabled(False)
+            self.ano_spin.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+            # Tipo
+            tipo = dto.get('tipo', 'OBJETIVA')
+            if tipo == 'OBJETIVA':
+                self.tipo_objetiva.setChecked(True)
+            else:
+                self.tipo_discursiva.setChecked(True)
+            self.tipo_objetiva.setEnabled(False)
+            self.tipo_discursiva.setEnabled(False)
+
+            # Dificuldade
+            dificuldade = dto.get('dificuldade')
+            dificuldade_map = {'FACIL': 1, 'MEDIO': 2, 'DIFICIL': 3}
+            id_dificuldade = dificuldade_map.get(dificuldade.upper() if dificuldade else 'MEDIO', 2)
+            if id_dificuldade == 1:
+                self.dificuldade_facil.setChecked(True)
+            elif id_dificuldade == 2:
+                self.dificuldade_medio.setChecked(True)
+            elif id_dificuldade == 3:
+                self.dificuldade_dificil.setChecked(True)
+            self.dificuldade_facil.setEnabled(False)
+            self.dificuldade_medio.setEnabled(False)
+            self.dificuldade_dificil.setEnabled(False)
+
+            # Fonte
+            fonte = dto.get('fonte', '')
+            if fonte:
+                self.fonte_input.setText(fonte)
+            self.fonte_input.setEnabled(False)
+            self.fonte_input.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+            # Série/Nível - será preenchido pelas tags
+            self.serie_combo.setEnabled(False)
+            self.serie_combo.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+            # Campos EDITÁVEIS - pré-preencher com dados da original
+            # Enunciado
+            enunciado = dto.get('enunciado', '')
+            self.enunciado_editor.set_text(enunciado)
+
+            # Resolução
+            resolucao = dto.get('resolucao', '')
+            self.resolucao_editor.set_text(resolucao or "")
+
+            # Observações
+            observacoes = dto.get('observacoes', '')
+            self.observacoes_edit.setPlainText(observacoes or "")
+
+            # Alternativas (para objetivas)
+            if tipo == 'OBJETIVA':
+                alternativas = dto.get('alternativas', [])
+                if alternativas:
+                    for i, alt in enumerate(alternativas):
+                        if i < len(self.alternativas_widgets):
+                            alt_widget = self.alternativas_widgets[i]
+                            texto = alt.get('texto', '') if isinstance(alt, dict) else getattr(alt, 'texto', '')
+                            correta = alt.get('correta', False) if isinstance(alt, dict) else getattr(alt, 'correta', False)
+                            alt_widget.texto_input.setText(texto)
+                            alt_widget.checkbox.setChecked(correta)
+
+            # Tags - desabilitar seleção mas mostrar as tags da original
+            tags = dto.get('tags', [])
+            if tags:
+                tag_conteudo_uuids = []
+                uuid_disciplina_encontrada = None
+
+                for tag in tags:
+                    tag_uuid = None
+                    tag_numeracao = None
+                    tag_nome = None
+                    tag_disciplina = None
+
+                    if isinstance(tag, dict):
+                        tag_uuid = tag.get('uuid')
+                        tag_numeracao = tag.get('numeracao', '') or ''
+                        tag_nome = tag.get('nome', '') or ''
+                        tag_disciplina = tag.get('uuid_disciplina')
+                    elif hasattr(tag, 'uuid'):
+                        tag_uuid = tag.uuid
+                        tag_numeracao = getattr(tag, 'numeracao', '') or ''
+                        tag_nome = getattr(tag, 'nome', '') or ''
+                        tag_disciplina = getattr(tag, 'uuid_disciplina', None)
+
+                    if not tag_uuid:
+                        continue
+
+                    if tag_numeracao.startswith('N'):
+                        idx = self.serie_combo.findData(tag_uuid)
+                        if idx >= 0:
+                            self.serie_combo.setCurrentIndex(idx)
+                    elif not tag_numeracao.startswith('V'):
+                        tag_conteudo_uuids.append(tag_uuid)
+                        if tag_disciplina and not uuid_disciplina_encontrada:
+                            uuid_disciplina_encontrada = tag_disciplina
+
+                # Selecionar disciplina
+                if uuid_disciplina_encontrada:
+                    idx = self.disciplina_combo.findData(uuid_disciplina_encontrada)
+                    if idx >= 0:
+                        self.disciplina_combo.setCurrentIndex(idx)
+
+                # Selecionar tags na lista
+                for i in range(self.tags_list.count()):
+                    item = self.tags_list.item(i)
+                    if item.data(Qt.ItemDataRole.UserRole) in tag_conteudo_uuids:
+                        item.setSelected(True)
+
+            # Desabilitar seleção de disciplina e tags
+            self.disciplina_combo.setEnabled(False)
+            self.disciplina_combo.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+            self.tags_list.setEnabled(False)
+            self.tags_list.setStyleSheet("background-color: #e9ecef; color: #6c757d;")
+
+        except Exception as e:
+            ErrorHandler.handle_exception(self, e, f"Erro ao carregar dados para variante")
+            self.close()
+
     def get_form_data(self) -> dict:
         """Coleta e retorna os dados do formulario em um dicionario."""
         tags = [item.data(Qt.ItemDataRole.UserRole) for item in self.tags_list.selectedItems()]
@@ -493,12 +686,14 @@ class QuestaoFormPage(QDialog):
         if not form_data.get('enunciado', '').strip():
             return False, "O enunciado da questao e obrigatorio."
 
-        if not self.fonte_input.text().strip():
-            return False, "E necessario informar uma fonte/banca para a questao."
+        # Pular validações de campos herdados quando é variante
+        if not self.is_variant:
+            if not self.fonte_input.text().strip():
+                return False, "E necessario informar uma fonte/banca para a questao."
 
-        tags_conteudo = self.tags_list.selectedItems()
-        if not tags_conteudo:
-            return False, "E necessario selecionar pelo menos uma tag de conteudo (assunto)."
+            tags_conteudo = self.tags_list.selectedItems()
+            if not tags_conteudo:
+                return False, "E necessario selecionar pelo menos uma tag de conteudo (assunto)."
 
         if form_data.get('tipo') == 'OBJETIVA':
             alternativas = form_data.get('alternativas', [])
@@ -522,8 +717,14 @@ class QuestaoFormPage(QDialog):
         return True, ""
 
     def save_questao(self):
-        """Valida e salva a questao (criacao ou atualizacao)."""
+        """Valida e salva a questao (criacao, atualizacao ou variante)."""
         logger.info("Tentando salvar a questao...")
+
+        # Se é variante, usar fluxo específico
+        if self.is_variant:
+            self._save_variante()
+            return
+
         form_data = self.get_form_data()
 
         valido, erro = self.validar_formulario(form_data)
@@ -581,6 +782,84 @@ class QuestaoFormPage(QDialog):
 
         except Exception as e:
             ErrorHandler.handle_exception(self, e, "Erro ao salvar questao")
+
+    def _save_variante(self):
+        """Salva a questão como variante."""
+        from src.controllers.questao_controller_orm import QuestaoControllerORM
+
+        logger.info(f"Salvando variante da questao {self.original_codigo}...")
+
+        # Coletar apenas campos editáveis
+        enunciado = self.enunciado_editor.get_text()
+        resolucao = self.resolucao_editor.get_text() or None
+        observacoes = self.observacoes_edit.toPlainText().strip() or None
+
+        # Validar enunciado
+        if not enunciado or not enunciado.strip():
+            QMessageBox.warning(self, "Validacao", "O enunciado da questao e obrigatorio.")
+            return
+
+        # Coletar alternativas (para objetivas)
+        alternativas = []
+        tipo = self.original_data.get('tipo', 'OBJETIVA')
+        if tipo == 'OBJETIVA':
+            alternativas_vazias = []
+            alternativa_correta = None
+
+            for widget in self.alternativas_widgets:
+                texto = widget.texto_input.text().strip()
+                correta = widget.checkbox.isChecked()
+
+                if not texto:
+                    alternativas_vazias.append(widget.letra)
+
+                if correta:
+                    alternativa_correta = widget.letra
+
+                alternativas.append({
+                    'letra': widget.letra,
+                    'texto': texto,
+                    'correta': correta,
+                    'uuid_imagem': widget.image_path
+                })
+
+            if alternativas_vazias:
+                letras = ', '.join(alternativas_vazias)
+                QMessageBox.warning(self, "Validacao", f"Todas as 5 alternativas devem ser preenchidas.\nAlternativas vazias: {letras}")
+                return
+
+            if not alternativa_correta:
+                QMessageBox.warning(self, "Validacao", "E necessario marcar uma alternativa como correta.")
+                return
+
+            # Verificar se só há uma correta
+            corretas = [alt for alt in alternativas if alt.get('correta')]
+            if len(corretas) > 1:
+                letras = ', '.join([alt.get('letra') for alt in corretas])
+                QMessageBox.warning(self, "Validacao", f"Apenas uma alternativa pode ser marcada como correta.\nMarcadas: {letras}")
+                return
+
+        try:
+            # Criar variante usando o controller
+            resultado = QuestaoControllerORM.criar_variante(
+                codigo_original=self.original_codigo,
+                enunciado=enunciado,
+                alternativas=alternativas if tipo == 'OBJETIVA' else None,
+                resolucao=resolucao,
+                observacoes=observacoes
+            )
+
+            if resultado:
+                codigo_variante = resultado.get('codigo', 'N/A')
+                msg = f"Variante criada com sucesso!\nCodigo: {codigo_variante}"
+                ErrorHandler.show_success(self, "Sucesso", msg)
+                self.questaoSaved.emit(codigo_variante)
+                self.accept()
+            else:
+                ErrorHandler.show_warning(self, "Falha", "Nao foi possivel criar a variante.\nVerifique se a questao original ja possui 3 variantes.")
+
+        except Exception as e:
+            ErrorHandler.handle_exception(self, e, "Erro ao criar variante")
 
 
     def show_preview(self):

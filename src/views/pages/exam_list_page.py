@@ -103,6 +103,24 @@ class ExamListPage(QWidget):
         create_btn.clicked.connect(self._on_create_new_exam)
         layout.addWidget(create_btn)
 
+        # Inactivate Button
+        inactivate_btn = SecondaryButton("Inativar Lista", parent=frame)
+        inactivate_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Color.WHITE};
+                color: #e74c3c;
+                border: 1px solid #e74c3c;
+                border-radius: {Dimensions.BORDER_RADIUS_MD};
+                padding: {Spacing.SM}px {Spacing.MD}px;
+                font-size: {Typography.FONT_SIZE_MD};
+            }}
+            QPushButton:hover {{
+                background-color: #fdf2f2;
+            }}
+        """)
+        inactivate_btn.clicked.connect(self._on_inactivate_exam)
+        layout.addWidget(inactivate_btn)
+
         # Exam List
         self.exam_list_widget = QListWidget(frame)
         self.exam_list_widget.setObjectName("exam_list_widget")
@@ -648,6 +666,49 @@ class ExamListPage(QWidget):
         except Exception as e:
             print(f"Error creating exam: {e}")
             QMessageBox.warning(self, "Erro", f"Erro ao criar: {str(e)}")
+
+    def _on_inactivate_exam(self):
+        """Handle inactivate exam button."""
+        current_item = self.exam_list_widget.currentItem()
+        if not current_item:
+            QMessageBox.warning(self, "Aviso", "Selecione uma lista para inativar.")
+            return
+
+        codigo = current_item.data(Qt.ItemDataRole.UserRole)
+        if not codigo:
+            QMessageBox.warning(self, "Aviso", "Lista inválida selecionada.")
+            return
+
+        titulo = current_item.text().replace("• ", "")
+
+        reply = QMessageBox.question(
+            self,
+            "Confirmar Inativação",
+            f"Tem certeza que deseja inativar a lista '{titulo}'?\n\n"
+            "A lista ficará oculta mas poderá ser reativada posteriormente.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                result = ListaControllerORM.deletar_lista(codigo)
+                if result:
+                    QMessageBox.information(self, "Sucesso", "Lista inativada com sucesso.")
+                    # Limpar seleção atual
+                    self.current_exam_codigo = None
+                    self.current_exam_data = None
+                    self.selected_list_title.setText("")
+                    self.selected_list_title.setPlaceholderText("Selecione uma lista")
+                    self.questions_list_widget.clear()
+                    self.edit_title_btn.setVisible(False)
+                    # Recarregar dados
+                    self._load_data()
+                else:
+                    QMessageBox.warning(self, "Erro", "Não foi possível inativar a lista.")
+            except Exception as e:
+                print(f"Error inactivating exam: {e}")
+                QMessageBox.warning(self, "Erro", f"Erro ao inativar: {str(e)}")
 
     def _on_edit_title_clicked(self):
         """Enable title editing."""

@@ -518,3 +518,192 @@ class QuestaoRepository(BaseRepository[Questao]):
             stats['por_ano'][ano.ano] = count
 
         return stats
+
+    # =========================================================================
+    # Métodos para gerenciamento de variantes (questões semelhantes)
+    # =========================================================================
+
+    def criar_vinculo_versao(
+        self,
+        uuid_original: str,
+        uuid_variante: str,
+        observacao: Optional[str] = None
+    ) -> bool:
+        """
+        Cria vínculo entre questão original e sua variante.
+
+        Args:
+            uuid_original: UUID da questão original
+            uuid_variante: UUID da questão variante
+            observacao: Observação opcional sobre a variante
+
+        Returns:
+            True se criado com sucesso, False caso contrário
+        """
+        try:
+            from src.models.orm import QuestaoVersao
+
+            vinculo = QuestaoVersao(
+                uuid_questao_original=uuid_original,
+                uuid_questao_versao=uuid_variante,
+                observacao=observacao
+            )
+            self.session.add(vinculo)
+            self.session.flush()
+
+            self._logger.info(f"Vínculo de versão criado: {uuid_original[:8]} -> {uuid_variante[:8]}")
+            return True
+        except Exception as e:
+            self._logger.error(f"Erro ao criar vínculo de versão: {e}")
+            return False
+
+    def buscar_variantes(self, uuid_questao: str) -> List[Questao]:
+        """
+        Busca todas as variantes de uma questão.
+
+        Args:
+            uuid_questao: UUID da questão original
+
+        Returns:
+            Lista de questões variantes
+        """
+        from src.models.orm import QuestaoVersao
+
+        # Buscar UUIDs das variantes
+        variantes_uuids = self.session.query(QuestaoVersao.uuid_questao_versao).filter(
+            QuestaoVersao.uuid_questao_original == uuid_questao
+        ).all()
+
+        if not variantes_uuids:
+            return []
+
+        # Buscar questões correspondentes
+        uuids = [v[0] for v in variantes_uuids]
+        return self.session.query(Questao).filter(
+            Questao.uuid.in_(uuids),
+            Questao.ativo == True
+        ).all()
+
+    def buscar_original(self, uuid_questao: str) -> Optional[Questao]:
+        """
+        Busca a questão original de uma variante.
+
+        Args:
+            uuid_questao: UUID da questão variante
+
+        Returns:
+            Questão original ou None se não for variante
+        """
+        from src.models.orm import QuestaoVersao
+
+        # Buscar UUID da questão original
+        vinculo = self.session.query(QuestaoVersao).filter(
+            QuestaoVersao.uuid_questao_versao == uuid_questao
+        ).first()
+
+        if not vinculo:
+            return None
+
+        return self.buscar_por_uuid(vinculo.uuid_questao_original)
+
+    def contar_variantes(self, uuid_questao: str) -> int:
+        """
+        Conta quantas variantes uma questão possui.
+
+        Args:
+            uuid_questao: UUID da questão
+
+        Returns:
+            Número de variantes
+        """
+        from src.models.orm import QuestaoVersao
+
+        return self.session.query(QuestaoVersao).filter(
+            QuestaoVersao.uuid_questao_original == uuid_questao
+        ).count()
+
+    def eh_variante(self, uuid_questao: str) -> bool:
+        """
+        Verifica se uma questão é variante de outra.
+
+        Args:
+            uuid_questao: UUID da questão
+
+        Returns:
+            True se for variante, False caso contrário
+        """
+        from src.models.orm import QuestaoVersao
+
+        return self.session.query(QuestaoVersao).filter(
+            QuestaoVersao.uuid_questao_versao == uuid_questao
+        ).first() is not None
+
+    def listar_questoes_principais(self, filtros: Optional[Dict[str, Any]] = None) -> List[Questao]:
+        """
+        Lista apenas questões que NÃO são variantes de outras.
+
+        Args:
+            filtros: Dicionário com filtros opcionais
+
+        Returns:
+            Lista de questões principais (não variantes)
+        """
+        from src.models.orm import QuestaoVersao
+        from sqlalchemy import not_, exists
+
+        # Subquery para encontrar questões que são variantes
+        variantes_subquery = self.session.query(QuestaoVersao.uuid_questao_versao)
+
+        # Query base: questões que NÃO estão na tabela de variantes
+        query = self.session.query(Questao).filter(
+            Questao.ativo == True,
+            ~Questao.uuid.in_(variantes_subquery)
+        )
+
+        # Aplicar filtros se fornecidos
+        if filtros:
+            if filtros.get('fonte'):
+                query = query.join(FonteQuestao).filter(
+                    FonteQuestao.sigla == filtros['fonte']
+                )
+
+            if filtros.get('ano_inicio') and filtros.get('ano_fim'):
+                query = query.join(AnoReferencia).filter(
+                    AnoReferencia.ano.between(filtros['ano_inicio'], filtros['ano_fim'])
+                )
+            elif filtros.get('ano_inicio'):
+                query = query.join(AnoReferencia).filter(
+                    AnoReferencia.ano >= filtros['ano_inicio']
+                )
+            elif filtros.get('ano_fim'):
+                query = query.join(AnoReferencia).filter(
+                    AnoReferencia.ano <= filtros['ano_fim']
+                )
+
+            if filtros.get('dificuldade'):
+                query = query.join(Dificuldade).filter(
+                    Dificuldade.codigo == filtros['dificuldade']
+                )
+
+            if filtros.get('tipo'):
+                query = query.join(TipoQuestao).filter(
+                    TipoQuestao.codigo == filtros['tipo']
+                )
+
+            if filtros.get('tags'):
+                tag_uuids = filtros['tags']
+                if len(tag_uuids) == 1:
+                    query = query.join(Questao.tags).filter(Tag.uuid == tag_uuids[0])
+                else:
+                    query = query.join(Questao.tags).filter(Tag.uuid.in_(tag_uuids))
+
+            if filtros.get('titulo'):
+                search_term = f"%{filtros['titulo']}%"
+                query = query.filter(
+                    or_(
+                        Questao.titulo.ilike(search_term),
+                        Questao.enunciado.ilike(search_term)
+                    )
+                )
+
+        return query.all()

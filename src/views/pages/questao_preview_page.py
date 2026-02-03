@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class QuestaoPreview(QDialog):
     """Janela de preview da questão no formato PDF"""
     edit_requested = pyqtSignal(object)  # Emite questao_data quando editar é clicado
+    create_variant_requested = pyqtSignal(object)  # Emite questao_data para criar variante
 
     def __init__(self, questao_data, parent=None):
         super().__init__(parent)
@@ -28,6 +29,9 @@ class QuestaoPreview(QDialog):
         self.setWindowTitle("Preview - Formato PDF")
         self.setMinimumSize(850, 650)
         self.resize(900, 750)
+
+        # Carregar informações de variantes
+        self._load_variant_info()
 
         try:
             self.init_ui()
@@ -39,6 +43,32 @@ class QuestaoPreview(QDialog):
                 "Erro ao carregar preview"
             )
             self.close()
+
+    def _load_variant_info(self):
+        """Carrega informações sobre variantes da questão."""
+        from src.controllers.questao_controller_orm import QuestaoControllerORM
+
+        codigo = self.questao_data.get('codigo') or self.questao_data.get('id')
+        if not codigo:
+            self.is_variant = False
+            self.original_question = None
+            self.variants = []
+            self.variant_count = 0
+            return
+
+        # Verificar se é variante
+        self.is_variant = QuestaoControllerORM.eh_variante(codigo)
+
+        if self.is_variant:
+            # Buscar questão original
+            self.original_question = QuestaoControllerORM.obter_questao_original(codigo)
+            self.variants = []
+            self.variant_count = 0
+        else:
+            # Buscar variantes desta questão
+            self.original_question = None
+            self.variants = QuestaoControllerORM.listar_variantes(codigo)
+            self.variant_count = len(self.variants)
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -77,6 +107,28 @@ class QuestaoPreview(QDialog):
         header_layout.addWidget(tipo_label)
         layout.addWidget(header_widget)
 
+        # Indicador se é variante de outra questão
+        if self.is_variant and self.original_question:
+            variant_banner = QFrame(self)
+            variant_banner.setStyleSheet("""
+                QFrame {
+                    background-color: #fff3cd;
+                    border: 1px solid #ffc107;
+                    border-radius: 4px;
+                    padding: 8px;
+                }
+            """)
+            variant_banner_layout = QHBoxLayout(variant_banner)
+            variant_banner_layout.setContentsMargins(10, 5, 10, 5)
+            variant_icon = QLabel("📋")
+            variant_banner_layout.addWidget(variant_icon)
+            original_codigo = self.original_question.get('codigo', 'N/A')
+            variant_info = QLabel(f"Esta é uma <b>variante</b> da questão <b>{original_codigo}</b>")
+            variant_info.setStyleSheet("color: #856404; font-size: 12px;")
+            variant_banner_layout.addWidget(variant_info)
+            variant_banner_layout.addStretch()
+            layout.addWidget(variant_banner)
+
         # Área de preview usando QWebEngineView
         self.web_view = QWebEngineView(self)
         self.web_view.setMinimumHeight(400)
@@ -88,6 +140,63 @@ class QuestaoPreview(QDialog):
 
         layout.addWidget(self.web_view, 1)  # stretch factor 1
 
+        # Seção de variantes (se não for variante e tiver variantes ou puder criar)
+        if not self.is_variant:
+            variants_frame = QFrame(self)
+            variants_frame.setStyleSheet("""
+                QFrame {
+                    background-color: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 4px;
+                }
+            """)
+            variants_layout = QVBoxLayout(variants_frame)
+            variants_layout.setContentsMargins(10, 10, 10, 10)
+            variants_layout.setSpacing(8)
+
+            # Título da seção
+            variants_header = QHBoxLayout()
+            variants_title = QLabel(f"📋 Variantes desta questão ({self.variant_count}/3)")
+            variants_title.setStyleSheet("font-weight: bold; font-size: 12px; color: #495057;")
+            variants_header.addWidget(variants_title)
+            variants_header.addStretch()
+            variants_layout.addLayout(variants_header)
+
+            # Lista de variantes existentes
+            if self.variants:
+                for idx, variant in enumerate(self.variants, start=1):
+                    variant_row = QHBoxLayout()
+                    variant_codigo = variant.get('codigo') or 'N/A'
+                    variant_label = QLabel(f"• <b>{variant_codigo}</b> - Variante {idx}")
+                    variant_label.setStyleSheet("color: #495057; font-size: 11px;")
+                    variant_row.addWidget(variant_label)
+                    variant_row.addStretch()
+
+                    # Botão Ver variante
+                    btn_view_variant = QPushButton("Ver")
+                    btn_view_variant.setFixedSize(50, 22)
+                    btn_view_variant.setStyleSheet("""
+                        QPushButton {
+                            background-color: #6c757d;
+                            color: white;
+                            border: none;
+                            border-radius: 3px;
+                            font-size: 10px;
+                        }
+                        QPushButton:hover {
+                            background-color: #5a6268;
+                        }
+                    """)
+                    btn_view_variant.clicked.connect(lambda checked, c=variant_codigo: self._on_view_variant(c))
+                    variant_row.addWidget(btn_view_variant)
+                    variants_layout.addLayout(variant_row)
+            else:
+                no_variants_label = QLabel("Nenhuma variante criada ainda.")
+                no_variants_label.setStyleSheet("color: #6c757d; font-size: 11px; font-style: italic;")
+                variants_layout.addWidget(no_variants_label)
+
+            layout.addWidget(variants_frame)
+
         # Botões
         btn_frame = QFrame(self)
         btn_frame.setFixedHeight(45)
@@ -95,6 +204,27 @@ class QuestaoPreview(QDialog):
         btn_layout = QHBoxLayout(btn_frame)
         btn_layout.setContentsMargins(0, 5, 0, 5)
         btn_layout.addStretch()
+
+        # Botão Criar Variante (somente se NÃO for variante e tiver menos de 3 variantes)
+        if not self.is_variant and self.variant_count < 3:
+            btn_create_variant = QPushButton("+ Criar Variante")
+            btn_create_variant.setFixedSize(130, 35)
+            btn_create_variant.setStyleSheet("""
+                QPushButton {
+                    padding: 8px 20px;
+                    background-color: #17a2b8;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #138496;
+                }
+            """)
+            btn_create_variant.clicked.connect(self._on_create_variant_clicked)
+            btn_layout.addWidget(btn_create_variant)
 
         btn_edit = QPushButton("Editar Questão")
         btn_edit.setFixedSize(130, 35)
@@ -479,6 +609,57 @@ li {{
         """Handler para botão de editar."""
         self.edit_requested.emit(self.questao_data)
         self.accept()
+
+    def _on_create_variant_clicked(self):
+        """Handler para botão de criar variante."""
+        self.create_variant_requested.emit(self.questao_data)
+        self.accept()
+
+    def _on_view_variant(self, codigo: str):
+        """Handler para ver uma variante."""
+        from src.controllers.questao_controller_orm import QuestaoControllerORM
+
+        # Buscar dados completos da variante
+        variant_data = QuestaoControllerORM.buscar_questao(codigo)
+        if variant_data:
+            # Formatar dados para preview
+            formatted_data = {
+                'id': variant_data.get('codigo'),
+                'codigo': variant_data.get('codigo'),
+                'uuid': variant_data.get('uuid'),
+                'titulo': variant_data.get('titulo'),
+                'tipo': variant_data.get('tipo'),
+                'enunciado': variant_data.get('enunciado', ''),
+                'ano': variant_data.get('ano'),
+                'fonte': variant_data.get('fonte'),
+                'dificuldade': variant_data.get('dificuldade'),
+                'observacoes': variant_data.get('observacoes'),
+                'alternativas': variant_data.get('alternativas', []),
+                'tags': variant_data.get('tags', []),
+            }
+
+            # Extrair resolução do resposta dict
+            resposta = variant_data.get('resposta')
+            if resposta:
+                if resposta.get('resolucao'):
+                    formatted_data['resolucao'] = resposta.get('resolucao')
+                elif resposta.get('gabarito_discursivo'):
+                    formatted_data['resolucao'] = resposta.get('gabarito_discursivo')
+
+            # Abrir preview da variante em nova janela
+            variant_preview = QuestaoPreview(formatted_data, parent=self.parent())
+            variant_preview.edit_requested.connect(self._forward_edit_request)
+            variant_preview.create_variant_requested.connect(self._forward_create_variant_request)
+            self.accept()  # Fechar este preview
+            variant_preview.exec()
+
+    def _forward_edit_request(self, questao_data):
+        """Reencaminha requisição de edição."""
+        self.edit_requested.emit(questao_data)
+
+    def _forward_create_variant_request(self, questao_data):
+        """Reencaminha requisição de criar variante."""
+        self.create_variant_requested.emit(questao_data)
 
 
 logger.info("QuestaoPreview carregado")

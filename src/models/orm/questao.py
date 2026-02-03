@@ -5,7 +5,7 @@ from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Numeric
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .base import BaseModel
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from src.models.orm.nivel_escolar import NivelEscolar
