@@ -89,3 +89,4 @@ desktop.ini
 
 # Arquivo de ambiente
 .env
+/logs/
