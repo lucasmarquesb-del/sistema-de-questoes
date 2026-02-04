@@ -27,3 +27,8 @@ class ExportOptionsDTO:
     gerar_versoes_randomizadas: bool = False
     quantidade_versoes: int = 1  # 1-4 versões (TIPO A, B, C, D)
     sufixo_versao: Optional[str] = None  # Ex: "TIPO A", "TIPO B"
+    # Campos específicos para template CEAB (simuladoCeab)
+    data_aplicacao: Optional[str] = None  # Ex: "02/12/2025"
+    serie_simulado: Optional[str] = None  # Ex: "3º ANO VESPERTINO"
+    unidade: Optional[str] = None  # I, II ou III
+    tipo_simulado: Optional[str] = None  # Ex: "LINGUAGENS, CÓDIGOS E SUAS TECNOLOGIAS"

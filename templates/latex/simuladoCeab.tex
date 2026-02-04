@@ -1,0 +1,142 @@
+% ============================================
+% TEMPLATE SIMULADO CEAB - SISTEMA DE QUESTOES
+% Colegio Estadual Antonio Balbino
+% Versao: 1.0.0
+% ============================================
+
+\documentclass[10pt,a4paper]{article}
+\pagestyle{empty}
+
+% Fonte Helvetica
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Codificacao e idioma
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{indentfirst}
+
+% Pacotes de formatacao
+\usepackage{arydshln}
+\usepackage{fbox}
+\usepackage{colortbl}
+\usepackage[table,xcdraw,dvipsnames]{xcolor}
+\usepackage[inline, shortlabels]{enumitem}
+\usepackage{fancybox}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{verbatim}
+\usepackage{supertabular}
+
+% Matematica
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+% Graficos e imagens
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+% Multiplas colunas
+\usepackage{multicol}
+\setlength{\columnseprule}{1pt}
+\def\columnseprulecolor{\color{black}}
+
+% Caixas decorativas
+\usepackage[most]{tcolorbox}
+
+% Layout de pagina
+\usepackage{pdflscape}
+\usepackage[lmargin=1.5cm,tmargin=1cm,rmargin=1.5cm,bmargin=2cm]{geometry}
+
+% URLs
+\usepackage{url}
+
+% Espacamento em tabelas
+\renewcommand{\arraystretch}{1.5}
+
+% Contador para continuar numeracao entre blocos multicol
+\newcounter{saveenum}
+
+% Caminho das imagens
+\graphicspath{{imagens/logos/}}
+
+\author{}
+\date{}
+
+% ============================================
+% INICIO DO DOCUMENTO
+% ============================================
+
+\begin{document}
+
+% CABECALHO CEAB
+\begin{tcolorbox}[enhanced,spread upwards,sharp corners=north,height=3.3cm,
+colframe=white,interior style={top color=white,bottom color=white}]
+\begin{tcolorbox}[colback=white,
+colframe=white,sharp corners,
+rounded corners=all,arc=2mm,left=0mm,right=0mm]
+\begin{minipage}[c][2.9cm][c]{18cm}
+    \large
+    \begin{tabular}{>{\centering\arraybackslash}m{5cm}lll}
+        \multirow{4}{*}{\hspace{50pt}\includegraphics[scale=0.08]{logoCeab.png}}& \multicolumn{3}{l}{\textbf{COLEGIO ESTADUAL ANTONIO BALBINO, [DATA_APLICACAO]}}\\
+        & \multicolumn{3}{l}{\textbf{ALUNO(A):} \begin{tikzpicture}
+            \draw[line width=1pt, dash pattern=on 1pt off 2pt] (0,0) -- (8cm,0);
+        \end{tikzpicture}}\\
+        & \multicolumn{3}{l}{\textbf{SERIE: [SERIE_SIMULADO]}}
+        \end{tabular}
+\end{minipage}
+\vspace{15pt}
+\begin{center}
+    \large\bf AVALIACAO FINAL DA [UNIDADE] UNIDADE - [TIPO_SIMULADO]
+\end{center}
+\end{tcolorbox}
+\end{tcolorbox}
+
+\vspace{2cm}
+
+% CAIXA DE FORMULAS (opcional)
+% [FORMULAS_AQUI]
+
+% ============================================
+% QUESTOES
+% ============================================
+
+\begin{multicols}{2}
+
+\begin{enumerate}[label=\arabic*)]
+
+% [QUESTOES_AQUI]
+
+\end{enumerate}
+
+\end{multicols}
+
+% ============================================
+% GABARITO (opcional)
+% ============================================
+
+\newpage
+
+\section*{Gabarito - [TITULO_LISTA]}
+
+\begin{enumerate}[leftmargin=*]
+% [GABARITO_AQUI]
+\end{enumerate}
+
+% ============================================
+% RESOLUCOES (opcional)
+% ============================================
+
+\newpage
+
+\section*{Resolucoes}
+
+\begin{enumerate}[leftmargin=*]
+% [RESOLUCOES_AQUI]
+\end{enumerate}
+
+\end{document}

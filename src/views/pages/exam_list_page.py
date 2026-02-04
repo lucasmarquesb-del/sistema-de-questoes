@@ -413,13 +413,74 @@ class ExamListPage(QWidget):
         self.wallon_fields_frame.setVisible(False)
         layout.addWidget(self.wallon_fields_frame)
 
-        # Carregar templates após criar wallon_fields_frame
-        self._load_templates()
+        # Campos específicos do template CEAB (simuladoCeab)
+        self.ceab_fields_frame = QFrame(scroll_content)
+        self.ceab_fields_frame.setObjectName("ceab_fields")
+        self.ceab_fields_frame.setStyleSheet(f"""
+            QFrame#ceab_fields {{
+                background-color: #f0f8f0;
+                border: 1px solid #90EE90;
+                border-radius: {Dimensions.BORDER_RADIUS_MD};
+            }}
+        """)
+        ceab_layout = QVBoxLayout(self.ceab_fields_frame)
+        ceab_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
+        ceab_layout.setSpacing(Spacing.XS)
 
-        # Column Layout Options
-        columns_label = QLabel("Layout:", scroll_content)
-        columns_label.setStyleSheet(f"color: {Color.GRAY_TEXT}; margin-top: {Spacing.SM}px;")
-        layout.addWidget(columns_label)
+        ceab_title = QLabel("Informacoes do Simulado CEAB:", self.ceab_fields_frame)
+        ceab_title.setStyleSheet(f"""
+            font-weight: {Typography.FONT_WEIGHT_BOLD};
+            font-size: {Typography.FONT_SIZE_SM};
+            color: #228B22;
+        """)
+        ceab_layout.addWidget(ceab_title)
+
+        # Campo Data de Aplicacao
+        self.data_aplicacao_input = QLineEdit(self.ceab_fields_frame)
+        self.data_aplicacao_input.setPlaceholderText("Data da Aplicacao (ex: 02/12/2025)")
+        self.data_aplicacao_input.setStyleSheet(self._get_input_style())
+        self.data_aplicacao_input.setFixedHeight(28)
+        ceab_layout.addWidget(self.data_aplicacao_input)
+
+        # Campo Serie do Simulado
+        self.serie_simulado_input = QLineEdit(self.ceab_fields_frame)
+        self.serie_simulado_input.setPlaceholderText("Serie (ex: 3o ANO VESPERTINO)")
+        self.serie_simulado_input.setStyleSheet(self._get_input_style())
+        self.serie_simulado_input.setFixedHeight(28)
+        ceab_layout.addWidget(self.serie_simulado_input)
+
+        # Campo Unidade (dropdown)
+        unidade_label = QLabel("Unidade:", self.ceab_fields_frame)
+        unidade_label.setStyleSheet(f"color: {Color.GRAY_TEXT}; font-size: 11px;")
+        ceab_layout.addWidget(unidade_label)
+
+        self.unidade_combo = QComboBox(self.ceab_fields_frame)
+        self.unidade_combo.addItem("Selecione a Unidade", "")
+        self.unidade_combo.addItem("I", "I")
+        self.unidade_combo.addItem("II", "II")
+        self.unidade_combo.addItem("III", "III")
+        self.unidade_combo.setStyleSheet(self._get_combo_style())
+        self.unidade_combo.setFixedHeight(28)
+        ceab_layout.addWidget(self.unidade_combo)
+
+        # Campo Tipo de Simulado (dropdown)
+        tipo_label = QLabel("Tipo de Simulado:", self.ceab_fields_frame)
+        tipo_label.setStyleSheet(f"color: {Color.GRAY_TEXT}; font-size: 11px;")
+        ceab_layout.addWidget(tipo_label)
+
+        self.tipo_simulado_combo = QComboBox(self.ceab_fields_frame)
+        self.tipo_simulado_combo.addItem("Selecione o Tipo", "")
+        self.tipo_simulado_combo.addItem("LINGUAGENS, CODIGOS E SUAS TECNOLOGIAS", "LINGUAGENS, CODIGOS E SUAS TECNOLOGIAS")
+        self.tipo_simulado_combo.addItem("LINGUAGENS, CODIGOS, CIENCIAS HUMANAS E SUAS TECNOLOGIAS", "LINGUAGENS, CODIGOS, CIENCIAS HUMANAS E SUAS TECNOLOGIAS")
+        self.tipo_simulado_combo.addItem("CIENCIAS HUMANAS E SUAS TECNOLOGIAS", "CIENCIAS HUMANAS E SUAS TECNOLOGIAS")
+        self.tipo_simulado_combo.addItem("MATEMATICA, CIENCIAS DA NATUREZA E SUAS TECNOLOGIAS", "MATEMATICA, CIENCIAS DA NATUREZA E SUAS TECNOLOGIAS")
+        self.tipo_simulado_combo.addItem("AREA TECNICA", "AREA TECNICA")
+        self.tipo_simulado_combo.setStyleSheet(self._get_combo_style())
+        self.tipo_simulado_combo.setFixedHeight(28)
+        ceab_layout.addWidget(self.tipo_simulado_combo)
+
+        self.ceab_fields_frame.setVisible(False)
+        layout.addWidget(self.ceab_fields_frame)
 
         radio_style = """
             QRadioButton::indicator {
@@ -445,6 +506,11 @@ class ExamListPage(QWidget):
                 border: 1px solid black;
             }
         """
+
+        # Column Layout Options
+        self.columns_label = QLabel("Layout:", scroll_content)
+        self.columns_label.setStyleSheet(f"color: {Color.GRAY_TEXT}; margin-top: {Spacing.SM}px;")
+        layout.addWidget(self.columns_label)
 
         self.column_button_group = QButtonGroup(self)
         self.single_column_radio = QRadioButton(Text.EXAM_SINGLE_COLUMN, scroll_content)
@@ -566,6 +632,9 @@ class ExamListPage(QWidget):
         export_latex_btn.clicked.connect(self._on_export_latex)
         main_layout.addWidget(export_latex_btn)
 
+        # Carregar templates após criar todos os elementos da UI
+        self._load_templates()
+
         return frame
 
     def _load_templates(self):
@@ -605,13 +674,66 @@ class ExamListPage(QWidget):
             }}
         """
 
+    def _get_combo_style(self) -> str:
+        """Return common combo box style for template fields."""
+        return f"""
+            QComboBox {{
+                padding: 6px 8px;
+                border: 1px solid {Color.BORDER_LIGHT};
+                border-radius: {Dimensions.BORDER_RADIUS_SM};
+                background-color: {Color.WHITE};
+                font-size: {Typography.FONT_SIZE_SM};
+                min-height: 28px;
+                max-height: 28px;
+                color: {Color.DARK_TEXT};
+            }}
+            QComboBox:hover {{
+                border-color: {Color.PRIMARY_BLUE};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid {Color.GRAY_TEXT};
+                margin-right: 5px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {Color.WHITE};
+                border: 1px solid {Color.BORDER_LIGHT};
+                selection-background-color: {Color.LIGHT_BLUE_BG_1};
+                selection-color: {Color.DARK_TEXT};
+                color: {Color.DARK_TEXT};
+            }}
+        """
+
     def _on_template_changed(self, index: int):
         """Handle template selection change."""
         template = self.template_combo.currentData()
-        if template and 'wallon' in template.lower():
-            self.wallon_fields_frame.setVisible(True)
-        else:
-            self.wallon_fields_frame.setVisible(False)
+
+        # Ocultar todos os campos específicos primeiro
+        self.wallon_fields_frame.setVisible(False)
+        self.ceab_fields_frame.setVisible(False)
+
+        # Mostrar opções de colunas por padrão
+        self.columns_label.setVisible(True)
+        self.single_column_radio.setVisible(True)
+        self.two_columns_radio.setVisible(True)
+
+        if template:
+            if 'wallon' in template.lower():
+                self.wallon_fields_frame.setVisible(True)
+            elif 'ceab' in template.lower() or 'simulado' in template.lower():
+                self.ceab_fields_frame.setVisible(True)
+                # Template CEAB já tem duas colunas, ocultar opção e definir para 1 coluna
+                # (o template internamente já aplica 2 colunas)
+                self.columns_label.setVisible(False)
+                self.single_column_radio.setVisible(False)
+                self.two_columns_radio.setVisible(False)
+                self.single_column_radio.setChecked(True)  # Evita duplicar multicols
 
     def _on_randomize_changed(self, state):
         """Handle randomize checkbox state change."""
@@ -935,6 +1057,11 @@ class ExamListPage(QWidget):
             if not self._validate_wallon_fields():
                 return
 
+        # Validar campos do template CEAB se necessário
+        if 'ceab' in template.lower() or 'simulado' in template.lower():
+            if not self._validate_ceab_fields():
+                return
+
         # Escolher diretório de saída
         output_dir = QFileDialog.getExistingDirectory(
             self, "Escolher pasta de saída",
@@ -964,7 +1091,12 @@ class ExamListPage(QWidget):
                 disciplina=self.disciplina_input.text().strip() or None,
                 professor=self.professor_input.text().strip() or None,
                 trimestre=self.trimestre_input.text().strip() or None,
-                ano=self.ano_input.text().strip() or None
+                ano=self.ano_input.text().strip() or None,
+                # Campos do template CEAB
+                data_aplicacao=self.data_aplicacao_input.text().strip() or None,
+                serie_simulado=self.serie_simulado_input.text().strip() or None,
+                unidade=self.unidade_combo.currentData() or None,
+                tipo_simulado=self.tipo_simulado_combo.currentData() or None
             )
 
             export_controller = criar_export_controller()
@@ -1007,6 +1139,26 @@ class ExamListPage(QWidget):
             return False
         return True
 
+    def _validate_ceab_fields(self) -> bool:
+        """Validate CEAB template fields."""
+        missing = []
+        if not self.data_aplicacao_input.text().strip():
+            missing.append("Data da Aplicacao")
+        if not self.serie_simulado_input.text().strip():
+            missing.append("Serie do Simulado")
+        if not self.unidade_combo.currentData():
+            missing.append("Unidade")
+        if not self.tipo_simulado_combo.currentData():
+            missing.append("Tipo de Simulado")
+
+        if missing:
+            QMessageBox.warning(
+                self, "Campos obrigatorios",
+                f"Preencha os seguintes campos para o template CEAB:\n- " + "\n- ".join(missing)
+            )
+            return False
+        return True
+
     def _on_export_latex(self):
         """Handle export LaTeX button."""
         if not self.current_exam_codigo:
@@ -1021,6 +1173,11 @@ class ExamListPage(QWidget):
         # Validar campos do template Wallon se necessário
         if 'wallon' in template.lower():
             if not self._validate_wallon_fields():
+                return
+
+        # Validar campos do template CEAB se necessário
+        if 'ceab' in template.lower() or 'simulado' in template.lower():
+            if not self._validate_ceab_fields():
                 return
 
         # Escolher diretório de saída
@@ -1052,7 +1209,12 @@ class ExamListPage(QWidget):
                 disciplina=self.disciplina_input.text().strip() or None,
                 professor=self.professor_input.text().strip() or None,
                 trimestre=self.trimestre_input.text().strip() or None,
-                ano=self.ano_input.text().strip() or None
+                ano=self.ano_input.text().strip() or None,
+                # Campos do template CEAB
+                data_aplicacao=self.data_aplicacao_input.text().strip() or None,
+                serie_simulado=self.serie_simulado_input.text().strip() or None,
+                unidade=self.unidade_combo.currentData() or None,
+                tipo_simulado=self.tipo_simulado_combo.currentData() or None
             )
 
             export_controller = criar_export_controller()
@@ -1072,6 +1234,11 @@ class ExamListPage(QWidget):
     def _perform_randomized_export(self, output_dir: str, template: str, tipo_exportacao: str):
         """Perform randomized export generating multiple versions."""
         from src.application.dtos.export_dto import ExportOptionsDTO
+
+        # Validar campos do template CEAB se necessário
+        if 'ceab' in template.lower() or 'simulado' in template.lower():
+            if not self._validate_ceab_fields():
+                return
 
         tipos = ['A', 'B', 'C', 'D']
         quantidade = self.versoes_spinbox.value()
@@ -1099,6 +1266,11 @@ class ExamListPage(QWidget):
                     professor=self.professor_input.text().strip() or None,
                     trimestre=self.trimestre_input.text().strip() or None,
                     ano=self.ano_input.text().strip() or None,
+                    # Campos do template CEAB
+                    data_aplicacao=self.data_aplicacao_input.text().strip() or None,
+                    serie_simulado=self.serie_simulado_input.text().strip() or None,
+                    unidade=self.unidade_combo.currentData() or None,
+                    tipo_simulado=self.tipo_simulado_combo.currentData() or None,
                     # Campos de randomização
                     gerar_versoes_randomizadas=True,
                     quantidade_versoes=quantidade,

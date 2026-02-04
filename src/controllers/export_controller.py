@@ -482,6 +482,16 @@ class ExportController:
         if opcoes.ano:
             template_content = template_content.replace("[ANO]", escape_latex(opcoes.ano))
 
+        # Substituir placeholders específicos do template CEAB (simuladoCeab)
+        if opcoes.data_aplicacao:
+            template_content = template_content.replace("[DATA_APLICACAO]", escape_latex(opcoes.data_aplicacao))
+        if opcoes.serie_simulado:
+            template_content = template_content.replace("[SERIE_SIMULADO]", escape_latex(opcoes.serie_simulado))
+        if opcoes.unidade:
+            template_content = template_content.replace("[UNIDADE]", escape_latex(opcoes.unidade))
+        if opcoes.tipo_simulado:
+            template_content = template_content.replace("[TIPO_SIMULADO]", escape_latex(opcoes.tipo_simulado))
+
         # Formulas (caixa de fórmulas opcional)
         formulas = lista_dados.get('formulas', '') or ''
         if formulas:
@@ -794,6 +804,16 @@ class ExportController:
             template_content = template_content.replace("[DISCIPLINA]", escape_latex(opcoes.disciplina))
         if opcoes.ano:
             template_content = template_content.replace("[ANO]", escape_latex(opcoes.ano))
+
+        # Substituir placeholders específicos do template CEAB (simuladoCeab)
+        if opcoes.data_aplicacao:
+            template_content = template_content.replace("[DATA_APLICACAO]", escape_latex(opcoes.data_aplicacao))
+        if opcoes.serie_simulado:
+            template_content = template_content.replace("[SERIE_SIMULADO]", escape_latex(opcoes.serie_simulado))
+        if opcoes.unidade:
+            template_content = template_content.replace("[UNIDADE]", escape_latex(opcoes.unidade))
+        if opcoes.tipo_simulado:
+            template_content = template_content.replace("[TIPO_SIMULADO]", escape_latex(opcoes.tipo_simulado))
 
         # Fórmulas
         formulas = lista_dados.get('formulas', '') or ''
