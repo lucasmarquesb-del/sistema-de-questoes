@@ -214,7 +214,7 @@ class Text:
 
     # Taxonomy
     TAXONOMY_TITLE = "Gerenciador de TAGS"
-    TAXONOMY_MATH = "TAGS de Matemática"
+    TAXONOMY_MATH = "TAGS"
     TAXONOMY_TAGS_COUNT = "{count} tags ativas"
     TAXONOMY_EDIT_TAG = "Editar Tag: {name}"
     TAXONOMY_BASIC_INFO = "Informações Básicas"

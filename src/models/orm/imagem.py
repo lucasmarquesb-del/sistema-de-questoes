@@ -3,6 +3,7 @@ Model ORM para Imagem (Centralizada)
 """
 import hashlib
 import os
+from typing import Optional
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -13,6 +14,7 @@ class Imagem(BaseModel):
     """
     Tabela centralizada de imagens
     Evita duplicação através de hash MD5
+    Suporta upload para serviços externos (ImgBB, etc.)
     """
     __tablename__ = 'imagem'
 
@@ -26,12 +28,29 @@ class Imagem(BaseModel):
     mime_type = Column(String(50), nullable=False)
     data_upload = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Campos para imagem remota
+    url_remota = Column(String(1000), nullable=True, index=True)
+    servico_hospedagem = Column(String(50), nullable=True, index=True)
+    id_remoto = Column(String(255), nullable=True)
+    url_thumbnail = Column(String(1000), nullable=True)
+    data_upload_remoto = Column(DateTime, nullable=True)
+
     # Relationships
     questoes_enunciado = relationship("Questao", back_populates="imagem_enunciado", foreign_keys="Questao.uuid_imagem_enunciado")
     alternativas = relationship("Alternativa", back_populates="imagem")
 
     def __repr__(self):
         return f"<Imagem(nome={self.nome_arquivo}, hash={self.hash_md5[:8]})>"
+
+    def tem_url_remota(self) -> bool:
+        """Verifica se a imagem tem URL externa"""
+        return bool(self.url_remota)
+
+    def get_url_para_exibicao(self) -> str:
+        """Retorna URL remota ou caminho local"""
+        if self.url_remota:
+            return self.url_remota
+        return self.caminho_relativo
 
     @classmethod
     def calcular_hash_md5(cls, caminho_arquivo: str) -> str:
