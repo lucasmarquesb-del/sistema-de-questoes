@@ -1,0 +1,124 @@
+% ============================================
+% TEMPLATE LISTA WALLON - SISTEMA DE QUESTÕES
+% Versão: 1.0.0
+% ============================================
+% Campos disponíveis:
+%   [TITULO_LISTA] - Nome da lista (definido no app)
+%   [PROFESSOR]    - Nome do professor
+%   [DISCIPLINA]   - Nome da disciplina
+%   [UNIDADE]      - Unidade: I, II ou III
+%   [ANO]          - Ano letivo
+% ============================================
+
+\documentclass[12pt,a4paper]{article}
+
+% Fonte Helvetica (sans-serif)
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Codificação e idioma
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{indentfirst}
+
+% Matemática
+\usepackage{amsmath,amssymb,amsfonts}
+
+% Layout e design
+\usepackage{xcolor}
+\usepackage[export]{adjustbox}
+\usepackage{fancybox}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage[most]{tcolorbox}
+
+% Tabelas
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{supertabular}
+\usepackage{colortbl}
+
+% Imagens
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+% Listas personalizadas
+\usepackage[inline, shortlabels]{enumitem}
+
+% Outros
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{pdflscape}
+
+% Margens
+\usepackage[lmargin=1.5cm,tmargin=1cm,rmargin=1.5cm,bmargin=2cm]{geometry}
+
+% Remover numeração de página
+\pagestyle{empty}
+
+% Definir cor vermelha do Wallon
+\definecolor{vr}{RGB}{237,50,55}
+
+% Caminho das imagens (imagens são copiadas para o diretório de compilação)
+\graphicspath{{./}}
+
+% ============================================
+% INÍCIO DO DOCUMENTO
+% ============================================
+
+\begin{document}
+
+% CABEÇALHO WALLON - LISTA
+\begin{tcolorbox}[enhanced,spread upwards,sharp corners=north,height=3.3cm,
+colframe=white,interior style={top color=vr,bottom color=white}]
+\begin{tcolorbox}[colback=white,
+colframe=white,sharp corners,
+rounded corners=all,arc=5mm,left=0mm,right=0mm]
+\begin{minipage}[c][2.9cm][c]{18cm}
+    \large
+    \begin{tabular}{llll}
+        [TITULO_LISTA] - [UNIDADE] UNIDADE & \multicolumn{1}{|l}{ANO [ANO]}& &  \multirow{4}{*}{\includegraphics[scale=0.4]{logowaloon.png}}\\
+        DISCIPLINA: [DISCIPLINA] & PROF.: [PROFESSOR]& &\\
+        \multicolumn{2}{l}{ALUNO(A): \rule{150pt}{.1mm}} & TURMA: \rule{30pt}{.1mm}&\\
+        DATA:\rule{20pt}{.1mm}$\mid$\rule{20pt}{.1mm}$\mid$[ANO] &  & &
+        \end{tabular}
+\end{minipage}
+\end{tcolorbox}
+\end{tcolorbox}
+
+% ============================================
+% QUESTÕES
+% ============================================
+
+\begin{enumerate}
+
+% [QUESTOES_AQUI]
+
+\end{enumerate}
+
+% ============================================
+% GABARITO (opcional)
+% ============================================
+
+\newpage
+
+\section*{Gabarito}
+
+\begin{enumerate}[leftmargin=*]
+% [GABARITO_AQUI]
+\end{enumerate}
+
+% ============================================
+% RESOLUÇÕES (opcional)
+% ============================================
+
+\newpage
+
+\section*{Resoluções}
+
+\begin{enumerate}[leftmargin=*]
+% [RESOLUCOES_AQUI]
+\end{enumerate}
+
+\end{document}
