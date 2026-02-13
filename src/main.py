@@ -6,6 +6,7 @@ import logging
 import atexit
 import os
 from pathlib import Path
+from src.version import __version__
 
 # Resolução de caminhos (funciona em dev e empacotado via PyInstaller)
 if getattr(sys, 'frozen', False):
@@ -184,13 +185,13 @@ def main():
     """
     logger.info("=" * 60)
     logger.info("INICIANDO SISTEMA DE BANCO DE QUESTÕES EDUCACIONAIS")
-    logger.info("Versão: 1.1.0 (com Autenticação Google)")
+    logger.info(f"Versão: {__version__}")
     logger.info("=" * 60)
 
     try:
         app = QApplication(sys.argv)
         app.setApplicationName("Sistema de Banco de Questões")
-        app.setApplicationVersion("1.1.0")
+        app.setApplicationVersion(__version__)
         app.setOrganizationName("Sistema Educacional")
         app.setStyle("Fusion")
 
@@ -220,7 +221,7 @@ def main():
         ThemeManager.apply_global_theme(app)
 
         # Referências para manter as janelas vivas
-        state = {"main_window": None}
+        state = {"main_window": None, "_update_thread": None}
 
         login_window = LoginWindow()
 
@@ -233,6 +234,7 @@ def main():
             state["main_window"] = MainWindow(user_data=user_data, auth_service=auth_service)
             state["main_window"].logout_requested.connect(on_logout)
             state["main_window"].showMaximized()
+            maybe_check_update()
 
         def on_login_failed(message: str):
             logger.warning(f"Login falhou: {message}")
@@ -251,6 +253,36 @@ def main():
             login_window.set_loading(False)
             login_window.show()
 
+        def maybe_check_update():
+            """Verifica atualizações em background (somente em modo empacotado)."""
+            if not getattr(sys, 'frozen', False):
+                return
+            try:
+                from src.views.dialogs.update_dialog import (
+                    UpdateDialog,
+                    check_for_updates_async,
+                )
+                from src.services.update_service import UpdateService
+
+                def _on_update_available(info):
+                    parent = state["main_window"] or login_window
+                    dlg = UpdateDialog(info, parent=parent)
+
+                    def _on_accepted(zip_path):
+                        service = UpdateService()
+                        if service.apply_update(zip_path):
+                            app.quit()
+
+                    dlg.update_accepted.connect(_on_accepted)
+                    dlg.exec()
+
+                state["_update_thread"] = check_for_updates_async(
+                    parent=None,
+                    on_update_available=_on_update_available,
+                )
+            except Exception as e:
+                logger.warning(f"Falha ao iniciar verificação de atualização: {e}")
+
         # Conectar signals
         login_window.login_requested.connect(on_login_requested)
         auth_service.login_successful.connect(on_login_successful)
@@ -264,6 +296,7 @@ def main():
             state["main_window"] = MainWindow(user_data=user_data, auth_service=auth_service)
             state["main_window"].logout_requested.connect(on_logout)
             state["main_window"].showMaximized()
+            maybe_check_update()
         else:
             login_window.show()
 
