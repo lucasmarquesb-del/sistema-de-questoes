@@ -71,7 +71,7 @@ def build_command() -> list[str]:
         cmd += ["--icon", str(ico_path)]
 
     # --- Excludes ---
-    for mod in ["backend", "tests", "pytest", "unittest"]:
+    for mod in ["backend", "tests", "pytest"]:
         cmd += ["--exclude-module", mod]
 
     # Entry point
