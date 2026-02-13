@@ -149,6 +149,7 @@ class ExamListPage(QWidget):
         self.current_exam_data: Optional[Dict] = None
         self.exams_list: List[Dict] = []
         self._original_title: str = ""
+        self._showing_inactive: bool = False
 
         self._setup_ui()
         self._load_data()
@@ -203,8 +204,8 @@ class ExamListPage(QWidget):
         layout.addWidget(create_btn)
 
         # Inactivate Button
-        inactivate_btn = SecondaryButton("Inativar Lista", parent=frame)
-        inactivate_btn.setStyleSheet(f"""
+        self.inactivate_btn = SecondaryButton("Inativar Lista", parent=frame)
+        self.inactivate_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Color.WHITE};
                 color: #e74c3c;
@@ -217,8 +218,47 @@ class ExamListPage(QWidget):
                 background-color: #fdf2f2;
             }}
         """)
-        inactivate_btn.clicked.connect(self._on_inactivate_exam)
-        layout.addWidget(inactivate_btn)
+        self.inactivate_btn.clicked.connect(self._on_inactivate_exam)
+        layout.addWidget(self.inactivate_btn)
+
+        # Reactivate Button (hidden by default, shown in inactive view)
+        self.reactivate_btn = SecondaryButton("Reativar Lista", parent=frame)
+        self.reactivate_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Color.WHITE};
+                color: {Color.TAG_GREEN};
+                border: 1px solid {Color.TAG_GREEN};
+                border-radius: {Dimensions.BORDER_RADIUS_MD};
+                padding: {Spacing.SM}px {Spacing.MD}px;
+                font-size: {Typography.FONT_SIZE_MD};
+            }}
+            QPushButton:hover {{
+                background-color: #f0fdf4;
+            }}
+        """)
+        self.reactivate_btn.clicked.connect(self._on_reactivate_exam)
+        self.reactivate_btn.setVisible(False)
+        layout.addWidget(self.reactivate_btn)
+
+        # Toggle inactive lists button
+        self.toggle_inactive_btn = QPushButton("Ver Inativadas", frame)
+        self.toggle_inactive_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.toggle_inactive_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Color.GRAY_TEXT};
+                border: 1px solid {Color.BORDER_MEDIUM};
+                border-radius: {Dimensions.BORDER_RADIUS_SM};
+                padding: {Spacing.XS}px {Spacing.SM}px;
+                font-size: {Typography.FONT_SIZE_SM};
+            }}
+            QPushButton:hover {{
+                color: {Color.PRIMARY_BLUE};
+                border-color: {Color.PRIMARY_BLUE};
+            }}
+        """)
+        self.toggle_inactive_btn.clicked.connect(self._on_toggle_inactive)
+        layout.addWidget(self.toggle_inactive_btn)
 
         # Exam List
         self.exam_list_widget = QListWidget(frame)
@@ -876,7 +916,12 @@ class ExamListPage(QWidget):
     def _load_data(self):
         """Load data from database."""
         try:
-            self.exams_list = ListaControllerORM.listar_listas()
+            if self._showing_inactive:
+                all_lists = ListaControllerORM.listar_listas(apenas_ativos=False)
+                active_codes = {l['codigo'] for l in ListaControllerORM.listar_listas(apenas_ativos=True)}
+                self.exams_list = [l for l in all_lists if l['codigo'] not in active_codes]
+            else:
+                self.exams_list = ListaControllerORM.listar_listas()
             self._populate_exam_list()
         except Exception as e:
             print(f"Error loading exam list: {e}")
@@ -898,7 +943,8 @@ class ExamListPage(QWidget):
             self.exam_list_widget.addItem(item)
 
         if not self.exams_list:
-            empty_item = QListWidgetItem(Text.EMPTY_NO_EXAMS)
+            empty_text = "Nenhuma lista inativada" if self._showing_inactive else Text.EMPTY_NO_EXAMS
+            empty_item = QListWidgetItem(empty_text)
             empty_item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.exam_list_widget.addItem(empty_item)
 
@@ -1026,6 +1072,68 @@ class ExamListPage(QWidget):
             except Exception as e:
                 print(f"Error inactivating exam: {e}")
                 QMessageBox.warning(self, "Erro", f"Erro ao inativar: {str(e)}")
+
+    def _on_toggle_inactive(self):
+        """Toggle between active and inactive lists."""
+        self._showing_inactive = not self._showing_inactive
+
+        if self._showing_inactive:
+            self.toggle_inactive_btn.setText("Ver Ativas")
+            self.reactivate_btn.setVisible(True)
+            self.inactivate_btn.setVisible(False)
+        else:
+            self.toggle_inactive_btn.setText("Ver Inativadas")
+            self.reactivate_btn.setVisible(False)
+            self.inactivate_btn.setVisible(True)
+
+        # Clear current selection
+        self.current_exam_codigo = None
+        self.current_exam_data = None
+        self.selected_list_title.setText("")
+        self.selected_list_title.setPlaceholderText("Selecione uma lista")
+        self.questions_list_widget.clear()
+        self.edit_title_btn.setVisible(False)
+
+        self._load_data()
+
+    def _on_reactivate_exam(self):
+        """Handle reactivate exam button."""
+        current_item = self.exam_list_widget.currentItem()
+        if not current_item:
+            QMessageBox.warning(self, "Aviso", "Selecione uma lista para reativar.")
+            return
+
+        codigo = current_item.data(Qt.ItemDataRole.UserRole)
+        if not codigo:
+            QMessageBox.warning(self, "Aviso", "Lista inválida selecionada.")
+            return
+
+        titulo = current_item.text().replace("• ", "")
+
+        reply = QMessageBox.question(
+            self,
+            "Confirmar Reativação",
+            f"Deseja reativar a lista '{titulo}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                result = ListaControllerORM.reativar_lista(codigo)
+                if result:
+                    QMessageBox.information(self, "Sucesso", "Lista reativada com sucesso.")
+                    self.current_exam_codigo = None
+                    self.current_exam_data = None
+                    self.selected_list_title.setText("")
+                    self.questions_list_widget.clear()
+                    self.edit_title_btn.setVisible(False)
+                    self._load_data()
+                else:
+                    QMessageBox.warning(self, "Erro", "Não foi possível reativar a lista.")
+            except Exception as e:
+                print(f"Error reactivating exam: {e}")
+                QMessageBox.warning(self, "Erro", f"Erro ao reativar: {str(e)}")
 
     def _on_edit_title_clicked(self):
         """Enable title editing."""

@@ -70,18 +70,19 @@ class ListaControllerORM:
             return None
 
     @staticmethod
-    def listar_listas(tipo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def listar_listas(tipo: Optional[str] = None, apenas_ativos: bool = True) -> List[Dict[str, Any]]:
         """
         Lista todas as listas, opcionalmente filtradas por tipo
 
         Args:
             tipo: Tipo opcional ('PROVA', 'LISTA', 'SIMULADO')
+            apenas_ativos: Se True, retorna apenas listas ativas
 
         Returns:
             Lista de dicts com dados resumidos das listas
         """
         try:
-            return services.lista.listar_listas(tipo)
+            return services.lista.listar_listas(tipo, apenas_ativos=apenas_ativos)
         except Exception as e:
             print(f"Erro ao listar listas: {e}")
             return []
@@ -198,4 +199,22 @@ class ListaControllerORM:
                 return svc.lista.deletar_lista(codigo)
         except Exception as e:
             print(f"Erro ao deletar lista: {e}")
+            return False
+
+    @staticmethod
+    def reativar_lista(codigo: str) -> bool:
+        """
+        Reativa uma lista previamente inativada
+
+        Args:
+            codigo: Código da lista (LST-2026-0001)
+
+        Returns:
+            True se reativada com sucesso
+        """
+        try:
+            with services.transaction() as svc:
+                return svc.lista.reativar_lista(codigo)
+        except Exception as e:
+            print(f"Erro ao reativar lista: {e}")
             return False

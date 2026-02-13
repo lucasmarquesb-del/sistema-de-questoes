@@ -7,9 +7,16 @@ import atexit
 import os
 from pathlib import Path
 
-# Adicionar diretório raiz ao PYTHONPATH
-project_root = Path(__file__).parent.parent
+# Resolução de caminhos (funciona em dev e empacotado via PyInstaller)
+if getattr(sys, 'frozen', False):
+    project_root = Path(sys.executable).parent
+else:
+    project_root = Path(__file__).parent.parent
+
 sys.path.insert(0, str(project_root))
+
+# Garantir que o CWD é a raiz do projeto para que caminhos relativos funcionem
+os.chdir(project_root)
 
 # IMPORTANTE: QtWebEngineWidgets deve ser importado ANTES de criar QApplication
 from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401

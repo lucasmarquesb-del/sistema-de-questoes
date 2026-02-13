@@ -120,12 +120,13 @@ class ListaService:
             'total_questoes': lista.contar_questoes()
         }
 
-    def listar_listas(self, tipo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def listar_listas(self, tipo: Optional[str] = None, apenas_ativos: bool = True) -> List[Dict[str, Any]]:
         """
         Lista todas as listas, opcionalmente filtradas por tipo
 
         Args:
             tipo: Tipo opcional (PROVA, LISTA, SIMULADO)
+            apenas_ativos: Se True, retorna apenas listas ativas
 
         Returns:
             Lista de dicts
@@ -133,7 +134,7 @@ class ListaService:
         if tipo:
             listas = self.lista_repo.buscar_por_tipo(tipo)
         else:
-            listas = self.lista_repo.listar_todos()
+            listas = self.lista_repo.listar_todos(apenas_ativos=apenas_ativos)
 
         return [
             {
@@ -212,6 +213,17 @@ class ListaService:
         lista = self.lista_repo.buscar_por_codigo(codigo)
         if lista:
             lista.ativo = False
+            self.session.flush()
+            return True
+        return False
+
+    def reativar_lista(self, codigo: str) -> bool:
+        """Reativa lista previamente inativada"""
+        # Buscar sem filtro de ativo
+        listas = self.lista_repo.listar_todos(apenas_ativos=False)
+        lista = next((l for l in listas if l.codigo == codigo), None)
+        if lista and not lista.ativo:
+            lista.ativo = True
             self.session.flush()
             return True
         return False
