@@ -2,8 +2,8 @@
 
 import logging
 from sqlalchemy.orm import Session
-from backend.models.user import User
-from backend.core.config import get_settings
+from models.user import User
+from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

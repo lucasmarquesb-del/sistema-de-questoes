@@ -6,10 +6,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.db.database import engine, SessionLocal, Base
-from backend.db.seed import seed_admin
-from backend.models.user import User  # noqa: F401 - necessário para criar tabelas
-from backend.routers import auth, users
+from db.database import engine, SessionLocal, Base
+from db.seed import seed_admin
+from models.user import User  # noqa: F401 - necessário para criar tabelas
+from routers import auth, users
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
