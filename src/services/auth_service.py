@@ -16,7 +16,7 @@ from src.services.api_client import ApiClient
 
 logger = logging.getLogger(__name__)
 
-TOKEN_DIR = Path.home() / ".mathbank"
+TOKEN_DIR = Path.home() / ".oharabank"
 TOKEN_FILE = TOKEN_DIR / "token.json"
 
 

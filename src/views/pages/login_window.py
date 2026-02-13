@@ -21,7 +21,7 @@ class LoginWindow(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("MathBank - Login")
+        self.setWindowTitle("OharaBank - Login")
         self.setFixedSize(480, 520)
         self._center_on_screen()
         self._setup_ui()
@@ -41,7 +41,7 @@ class LoginWindow(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Logo / Título
-        logo_label = QLabel("MathBank")
+        logo_label = QLabel("OharaBank")
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_label.setStyleSheet(f"""
             font-size: 36px;

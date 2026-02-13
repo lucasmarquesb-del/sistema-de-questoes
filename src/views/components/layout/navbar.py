@@ -137,7 +137,7 @@ class Navbar(QFrame):
         self.logo_label = QLabel(self)
         self.logo_label.setObjectName("logo")
         self.logo_label.setText(f"Σ {Text.APP_TITLE}")
-        self.logo_label.setFixedSize(QSize(120, 30))
+        self.logo_label.setFixedSize(QSize(160, 30))
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_container.addWidget(self.logo_label)
         main_layout.addLayout(logo_container)

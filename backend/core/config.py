@@ -6,7 +6,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # PostgreSQL
-    DATABASE_URL: str = "postgresql://localhost/mathbank"
+    DATABASE_URL: str = "postgresql://localhost/oharabank"
 
     # Google OAuth 2.0
     GOOGLE_CLIENT_ID: str = ""

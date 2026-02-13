@@ -129,8 +129,8 @@ class IconPath:
 # Textos/Labels da interface (pt-BR)
 class Text:
     # App
-    APP_TITLE = "MathBank"
-    APP_TITLE_ANALYTICS = "MathBank Analytics"
+    APP_TITLE = "OharaBank"
+    APP_TITLE_ANALYTICS = "OharaBank Analytics"
 
     # Navigation
     NAV_DASHBOARD = "Painel"

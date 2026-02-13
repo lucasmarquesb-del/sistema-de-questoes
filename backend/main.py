@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="MathBank Auth API",
-    description="API de autenticacao e gerenciamento de usuarios do MathBank.",
+    title="OharaBank Auth API",
+    description="API de autenticacao e gerenciamento de usuarios do OharaBank.",
     version="1.0.0",
     lifespan=lifespan,
 )
