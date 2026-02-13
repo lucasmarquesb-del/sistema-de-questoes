@@ -7,6 +7,7 @@ class PageEnum(Enum):
     LISTS = "lists"
     TAXONOMY = "taxonomy"
     QUESTION_EDITOR = "question_editor"
+    USER_MANAGEMENT = "user_management"
 
 class ActionEnum(Enum):
     CREATE_NEW = "create_new"
@@ -16,6 +17,7 @@ class ActionEnum(Enum):
     HELP = "help"
     SETTINGS = "settings"
     PROFILE = "profile"
+    LOGOUT = "logout"
 
 class ButtonTypeEnum(Enum):
     PRIMARY = "primary"

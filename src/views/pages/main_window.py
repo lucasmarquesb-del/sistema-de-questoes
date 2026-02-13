@@ -6,7 +6,7 @@ from src.views.design.enums import PageEnum, ActionEnum
 from src.views.components.layout.navbar import Navbar
 from src.views.components.layout.sidebar import Sidebar
 from src.views.design.theme import ThemeManager
-from src.views.components.common.feedback import Toast, LoadingSpinner # Added import
+from src.views.components.common.feedback import Toast, LoadingSpinner
 
 from src.views.pages.dashboard_page import DashboardPage
 from src.views.pages.question_bank_page import QuestionBankPage
@@ -21,10 +21,16 @@ class MainWindow(QMainWindow):
     """
     The main application window (shell) managing navigation, sidebar, and page content.
     """
-    def __init__(self, parent=None):
+    logout_requested = pyqtSignal()
+
+    def __init__(self, user_data: dict = None, auth_service=None, parent=None):
         super().__init__(parent)
+        self._user_data = user_data or {}
+        self._auth_service = auth_service
+        self._is_admin = self._user_data.get("role") == "admin"
+
         self.setWindowTitle(Text.APP_TITLE)
-        self.setGeometry(100, 100, 1200, 800) # Initial window size
+        self.setGeometry(100, 100, 1200, 800)
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -32,21 +38,17 @@ class MainWindow(QMainWindow):
         self.central_layout.setContentsMargins(0, 0, 0, 0)
         self.central_layout.setSpacing(0)
 
-        # 1. Navbar
-        self.navbar = Navbar(current_page=PageEnum.QUESTION_BANK, parent=self)
+        # 1. Navbar (passa user_data para exibir nome e menu admin)
+        self.navbar = Navbar(current_page=PageEnum.QUESTION_BANK, user_data=self._user_data, parent=self)
         self.navbar.page_changed.connect(self._handle_page_change)
         self.navbar.action_clicked.connect(self._handle_action_clicked)
+        self.navbar.logout_clicked.connect(self._handle_logout)
         self.central_layout.addWidget(self.navbar)
 
         # Content Area (Sidebar + Main Content)
         self.body_layout = QHBoxLayout()
         self.body_layout.setContentsMargins(0, 0, 0, 0)
         self.body_layout.setSpacing(0)
-
-        # # 2. Sidebar
-        # self.sidebar = Sidebar(self)
-        # self.sidebar.tag_filter_changed.connect(self._handle_tag_filter_change)
-        # self.body_layout.addWidget(self.sidebar)
 
         # 3. Content Area (QStackedWidget for pages)
         self.content_stacked_widget = QStackedWidget(self)
@@ -58,26 +60,24 @@ class MainWindow(QMainWindow):
         # 4. Status Bar
         self.status_bar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage(f"{Text.APP_TITLE} Initialized.")
+        user_email = self._user_data.get("email", "")
+        self.status_bar.showMessage(f"{Text.APP_TITLE} - {user_email}" if user_email else f"{Text.APP_TITLE}")
 
         # Initialize Toast and LoadingSpinner (hidden by default)
-        self.toast = Toast(parent=self) # Message will be set dynamically
+        self.toast = Toast(parent=self)
         self.loading_spinner = LoadingSpinner(parent=self)
-        self.loading_spinner.hide() # Initially hidden
+        self.loading_spinner.hide()
 
         self._initialize_pages()
-        self._set_current_page(PageEnum.QUESTION_BANK) # Set initial page
+        self._set_current_page(PageEnum.QUESTION_BANK)
 
         # Apply global theme
         ThemeManager.apply_global_theme(QApplication.instance())
 
 
     def _initialize_pages(self):
-        """Initializes and adds pages to the stacked widget (lazy loading can be implemented here)."""
+        """Initializes and adds pages to the stacked widget."""
         self.pages = {}
-        # Pages that require sidebar: QuestionBank, Lists, Taxonomy
-        # Pages that don't: Dashboard
-        # Special pages: QuestionEditor (might be a dialog or full page)
 
         self.dashboard_page = DashboardPage(self)
         self.content_stacked_widget.addWidget(self.dashboard_page)
@@ -95,9 +95,18 @@ class MainWindow(QMainWindow):
         self.content_stacked_widget.addWidget(self.taxonomy_page)
         self.pages[PageEnum.TAXONOMY] = self.taxonomy_page
 
-        self.question_editor_page = QuestionEditorPage(self) # Can be shown via action
+        self.question_editor_page = QuestionEditorPage(self)
         self.content_stacked_widget.addWidget(self.question_editor_page)
         self.pages[PageEnum.QUESTION_EDITOR] = self.question_editor_page
+
+        # Página de gerenciamento de usuários (somente admin)
+        if self._is_admin and self._auth_service:
+            from src.views.pages.user_management_page import UserManagementPage
+            self.user_management_page = UserManagementPage(
+                api_client=self._auth_service.api_client, parent=self
+            )
+            self.content_stacked_widget.addWidget(self.user_management_page)
+            self.pages[PageEnum.USER_MANAGEMENT] = self.user_management_page
 
         # Conectar sinais do editor de questões
         self.question_editor_page.cancel_requested.connect(self._on_question_editor_cancel)
@@ -119,7 +128,6 @@ class MainWindow(QMainWindow):
         if page_enum in self.pages:
             self.content_stacked_widget.setCurrentWidget(self.pages[page_enum])
             self.navbar.update_navbar_for_page(page_enum)
-            # self._update_sidebar_visibility(page_enum)
             self.toast.show_message(f"Showing page: {page_enum.value.replace('_', ' ').title()}", "info")
         else:
             self.toast.show_message(f"Error: Page '{page_enum.value}' not found.", "error")
@@ -130,37 +138,35 @@ class MainWindow(QMainWindow):
 
     def _handle_action_clicked(self, action_enum: ActionEnum):
         """Handler for actions from Navbar, e.g., 'Create New'."""
-        self.loading_spinner.start_loading() # Show spinner for any action
-
-        # Simulate a delay for the action
+        self.loading_spinner.start_loading()
         QTimer.singleShot(1000, lambda: self._complete_action(action_enum))
 
     def _complete_action(self, action_enum: ActionEnum):
-        self.loading_spinner.stop_loading() # Hide spinner after delay
+        self.loading_spinner.stop_loading()
 
         if action_enum == ActionEnum.CREATE_NEW:
             current_page_enum = self.navbar.nav_menu.current_page
             if current_page_enum == PageEnum.QUESTION_BANK:
-                # Limpar formulário antes de criar nova questão
                 self.question_editor_page.clear_form()
                 self._set_current_page(PageEnum.QUESTION_EDITOR)
                 self.toast.show_message("Criando nova questão...", "success")
             elif current_page_enum == PageEnum.LISTS:
                 self.toast.show_message("Creating a new exam list...", "success")
-                # self._set_current_page(PageEnum.EXAM_LIST_EDITOR) # Assuming a dedicated editor
             else:
                 self.toast.show_message(f"Action '{action_enum.value}' not supported on this page.", "warning")
         else:
             self.toast.show_message(f"Action '{action_enum.value}' triggered.", "info")
 
+    def _handle_logout(self):
+        """Handler para logout — emite signal para main.py."""
+        self.logout_requested.emit()
+
     def _handle_tag_filter_change(self, tag_uuid: str, is_checked: bool):
         """Handler for tag filter changes from Sidebar."""
         self.toast.show_message(f"Tag '{tag_uuid}' filter changed: {'checked' if is_checked else 'unchecked'}", "info")
-        # Here, actual filtering logic would be called for the current page
 
     def _on_question_editor_cancel(self):
         """Handler para cancelar/voltar do editor de questões."""
-        # Limpar formulário ao cancelar
         self.question_editor_page.clear_form()
         self._set_current_page(PageEnum.QUESTION_BANK)
 
@@ -228,9 +234,7 @@ class MainWindow(QMainWindow):
                 sucesso = self.questao_controller.atualizar_questao_completa(dto)
                 if sucesso:
                     self.toast.show_message(f"Questão {editing_id} atualizada com sucesso!", "success")
-                    # Limpar formulário e voltar para modo criação
                     self.question_editor_page.clear_form()
-                    # Atualizar lista de questões
                     if hasattr(self.question_bank_page, 'refresh_data'):
                         self.question_bank_page.refresh_data()
                     self._set_current_page(PageEnum.QUESTION_BANK)
@@ -256,9 +260,7 @@ class MainWindow(QMainWindow):
                 if resultado:
                     codigo = resultado.get('codigo') if isinstance(resultado, dict) else resultado
                     self.toast.show_message(f"Questão criada com sucesso! Código: {codigo}", "success")
-                    # Limpar formulário
                     self.question_editor_page.clear_form()
-                    # Atualizar lista de questões antes de mudar de página
                     if hasattr(self.question_bank_page, 'refresh_data'):
                         self.question_bank_page.refresh_data()
                     self._set_current_page(PageEnum.QUESTION_BANK)
@@ -271,41 +273,15 @@ class MainWindow(QMainWindow):
     def _on_edit_question_requested(self, questao_data: dict):
         """Handler para abrir formulário de edição de questão."""
         try:
-            # Carregar dados da questão no editor
             self.question_editor_page.load_question_for_editing(questao_data)
-            # Navegar para a página do editor
             self._set_current_page(PageEnum.QUESTION_EDITOR)
-
         except Exception as e:
             self.toast.show_message(f"Erro ao abrir editor: {str(e)}", "error")
 
     def _on_create_variant_requested(self, questao_data: dict):
         """Handler para abrir editor para criação de variante."""
         try:
-            # Carregar dados no editor em modo variante
             self.question_editor_page.load_question_for_variant(questao_data)
-            # Navegar para a página do editor
             self._set_current_page(PageEnum.QUESTION_EDITOR)
-
         except Exception as e:
             self.toast.show_message(f"Erro ao abrir editor de variante: {str(e)}", "error")
-
-    # def _update_sidebar_visibility(self, page_enum: PageEnum):
-    #     """Shows or hides the sidebar based on the current page."""
-    #     pages_with_sidebar = [PageEnum.QUESTION_BANK, PageEnum.LISTS, PageEnum.TAXONOMY]
-    #     if page_enum in pages_with_sidebar:
-    #         self.sidebar.show()
-    #     else:
-    #         self.sidebar.hide()
-
-
-if __name__ == '__main__':
-    import sys
-    from PyQt6.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-
-    main_window = MainWindow()
-    main_window.show()
-    sys.exit(app.exec())

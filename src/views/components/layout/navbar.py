@@ -1,5 +1,5 @@
 # src/views/components/layout/navbar.py
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QFrame
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QFrame, QPushButton
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from src.views.design.constants import Color, Spacing, Typography, Dimensions, Text
@@ -69,7 +69,7 @@ class NavMenu(QWidget):
     """
     page_changed = pyqtSignal(PageEnum)
 
-    def __init__(self, current_page: PageEnum = PageEnum.DASHBOARD, parent=None):
+    def __init__(self, current_page: PageEnum = PageEnum.DASHBOARD, is_admin: bool = False, parent=None):
         super().__init__(parent)
         self.current_page = current_page
         self.nav_items = {}
@@ -83,6 +83,9 @@ class NavMenu(QWidget):
         self._add_nav_item(PageEnum.QUESTION_BANK, Text.NAV_QUESTION_BANK)
         self._add_nav_item(PageEnum.LISTS, Text.NAV_EXAMS)
         self._add_nav_item(PageEnum.TAXONOMY, Text.NAV_TAXONOMY)
+
+        if is_admin:
+            self._add_nav_item(PageEnum.USER_MANAGEMENT, "Usuarios")
 
         self.update_active_item(self.current_page)
 
@@ -113,11 +116,15 @@ class Navbar(QFrame):
     notifications_clicked = pyqtSignal()
     settings_clicked = pyqtSignal()
     profile_clicked = pyqtSignal()
+    logout_clicked = pyqtSignal()
 
-    def __init__(self, current_page: PageEnum = PageEnum.DASHBOARD, parent=None):
+    def __init__(self, current_page: PageEnum = PageEnum.DASHBOARD, user_data: dict = None, parent=None):
         super().__init__(parent)
         self.setObjectName("header")
         self.setFixedHeight(Dimensions.NAVBAR_HEIGHT)
+        self._user_data = user_data or {}
+
+        is_admin = self._user_data.get("role") == "admin"
 
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(Spacing.XL, 0, Spacing.XL, 0)
@@ -129,21 +136,20 @@ class Navbar(QFrame):
         logo_container.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.logo_label = QLabel(self)
         self.logo_label.setObjectName("logo")
-        # Placeholder for actual Sigma icon + text
-        self.logo_label.setText(f"Σ {Text.APP_TITLE}") # Assuming Σ is part of the text or an icon
-        self.logo_label.setFixedSize(QSize(120, 30)) # Example size
+        self.logo_label.setText(f"Σ {Text.APP_TITLE}")
+        self.logo_label.setFixedSize(QSize(120, 30))
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_container.addWidget(self.logo_label)
         main_layout.addLayout(logo_container)
 
         # 2. Navigation Menu
-        self.nav_menu = NavMenu(current_page, self)
+        self.nav_menu = NavMenu(current_page, is_admin=is_admin, parent=self)
         self.nav_menu.page_changed.connect(self.page_changed.emit)
         main_layout.addWidget(self.nav_menu)
 
-        main_layout.addStretch() # Pushes action items to the right
+        main_layout.addStretch()
 
-        # 3. Action Area (Contextual Button, Notifications, Settings, User Avatar)
+        # 3. Action Area
         action_area_layout = QHBoxLayout()
         action_area_layout.setSpacing(Spacing.SM)
         action_area_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -163,11 +169,23 @@ class Navbar(QFrame):
         self.settings_icon.clicked.connect(self.settings_clicked.emit)
         action_area_layout.addWidget(self.settings_icon)
 
-        self.user_avatar = IconButton(icon_path="images/icons/user.png", size=QSize(30,30), parent=self) # Bigger for avatar
+        # User info label
+        user_name = self._user_data.get("name") or self._user_data.get("email", "")
+        if user_name:
+            self.user_name_label = QLabel(user_name)
+            self.user_name_label.setStyleSheet(f"""
+                color: {Color.DARK_TEXT};
+                font-size: {Typography.FONT_SIZE_SM};
+                font-weight: {Typography.FONT_WEIGHT_MEDIUM};
+                font-family: {Typography.FONT_FAMILY};
+            """)
+            action_area_layout.addWidget(self.user_name_label)
+
+        self.user_avatar = IconButton(icon_path="images/icons/user.png", size=QSize(30,30), parent=self)
         self.user_avatar.setToolTip("User Profile")
         self.user_avatar.clicked.connect(self.profile_clicked.emit)
-        self.user_avatar.setObjectName("avatar") # Uses specific avatar style
-        self.user_avatar.setFixedSize(QSize(40,40)) # Override fixed size for avatar
+        self.user_avatar.setObjectName("avatar")
+        self.user_avatar.setFixedSize(QSize(40,40))
         self.user_avatar.setStyleSheet(f"""
             QPushButton#avatar {{
                 border-radius: {Dimensions.BORDER_RADIUS_CIRCLE};
@@ -179,6 +197,28 @@ class Navbar(QFrame):
             }}
         """)
         action_area_layout.addWidget(self.user_avatar)
+
+        # Logout button
+        self.logout_button = QPushButton("Sair")
+        self.logout_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.logout_button.setToolTip("Sair da conta")
+        self.logout_button.setStyleSheet(f"""
+            QPushButton {{
+                color: {Color.GRAY_TEXT};
+                background: transparent;
+                border: 1px solid {Color.BORDER_MEDIUM};
+                border-radius: 4px;
+                font-size: {Typography.FONT_SIZE_XS};
+                font-family: {Typography.FONT_FAMILY};
+                padding: 4px 12px;
+            }}
+            QPushButton:hover {{
+                color: #dc2626;
+                border-color: #dc2626;
+            }}
+        """)
+        self.logout_button.clicked.connect(self.logout_clicked.emit)
+        action_area_layout.addWidget(self.logout_button)
 
         main_layout.addLayout(action_area_layout)
         self.setLayout(main_layout)

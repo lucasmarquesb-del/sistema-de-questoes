@@ -163,19 +163,27 @@ def show_error_dialog(title: str, message: str):
     msg.exec()
 
 
+def get_backend_url() -> str:
+    """Lê a URL do backend a partir do config.ini."""
+    import configparser
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    return config.get("AUTH", "backend_url", fallback="http://localhost:8000")
+
+
 def main():
     """
     Função principal da aplicação.
     """
     logger.info("=" * 60)
     logger.info("INICIANDO SISTEMA DE BANCO DE QUESTÕES EDUCACIONAIS")
-    logger.info("Versão: 1.0.1 (com Logging Remoto)")
+    logger.info("Versão: 1.1.0 (com Autenticação Google)")
     logger.info("=" * 60)
 
     try:
         app = QApplication(sys.argv)
         app.setApplicationName("Sistema de Banco de Questões")
-        app.setApplicationVersion("1.0.1")
+        app.setApplicationVersion("1.1.0")
         app.setOrganizationName("Sistema Educacional")
         app.setStyle("Fusion")
 
@@ -187,19 +195,76 @@ def main():
             )
             logger.critical("Falha na inicialização do banco de dados. A aplicação será encerrada.")
             return 1
-        
+
         logger.info("Banco de dados configurado com sucesso.")
 
+        # Configurar autenticação
+        from src.services.api_client import ApiClient
+        from src.services.auth_service import AuthService
+        from src.views.pages.login_window import LoginWindow
         from src.views.pages.main_window import MainWindow
-        window = MainWindow()
-        window.showMaximized()
+        from src.views.design.theme import ThemeManager
 
-        logger.info("Sistema inicializado e janela principal exibida.")
-        
+        backend_url = get_backend_url()
+        api_client = ApiClient(backend_url)
+        auth_service = AuthService(api_client)
+
+        # Aplicar tema global
+        ThemeManager.apply_global_theme(app)
+
+        # Referências para manter as janelas vivas
+        state = {"main_window": None}
+
+        login_window = LoginWindow()
+
+        def on_login_requested():
+            auth_service.start_login()
+
+        def on_login_successful(user_data: dict):
+            logger.info(f"Login bem-sucedido: {user_data.get('email')}")
+            login_window.hide()
+            state["main_window"] = MainWindow(user_data=user_data, auth_service=auth_service)
+            state["main_window"].logout_requested.connect(on_logout)
+            state["main_window"].showMaximized()
+
+        def on_login_failed(message: str):
+            logger.warning(f"Login falhou: {message}")
+            login_window.show_error(message)
+
+        def on_login_pending(email: str):
+            logger.info(f"Conta pendente de aprovação: {email}")
+            login_window.show_pending(email)
+
+        def on_logout():
+            logger.info("Logout solicitado")
+            auth_service.logout()
+            if state["main_window"]:
+                state["main_window"].close()
+                state["main_window"] = None
+            login_window.set_loading(False)
+            login_window.show()
+
+        # Conectar signals
+        login_window.login_requested.connect(on_login_requested)
+        auth_service.login_successful.connect(on_login_successful)
+        auth_service.login_failed.connect(on_login_failed)
+        auth_service.login_pending.connect(on_login_pending)
+
+        # Tentar restaurar sessão existente
+        user_data = auth_service.try_restore_session()
+        if user_data:
+            logger.info(f"Sessão restaurada para: {user_data.get('email')}")
+            state["main_window"] = MainWindow(user_data=user_data, auth_service=auth_service)
+            state["main_window"].logout_requested.connect(on_logout)
+            state["main_window"].showMaximized()
+        else:
+            login_window.show()
+
+        logger.info("Sistema inicializado.")
+
         return app.exec()
 
     except Exception as e:
-        # O error reporter global deve capturar isso, mas logamos como crítico também.
         logger.critical(f"Erro fatal não capturado na inicialização: {e}", exc_info=True)
         show_error_dialog(
             "Erro Crítico",
