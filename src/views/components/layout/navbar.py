@@ -181,19 +181,26 @@ class Navbar(QFrame):
             """)
             action_area_layout.addWidget(self.user_name_label)
 
-        self.user_avatar = IconButton(icon_path="images/icons/user.png", size=QSize(30,30), parent=self)
+        # Avatar com iniciais do usuário
+        initials = self._get_initials()
+        self.user_avatar = QPushButton(initials, self)
         self.user_avatar.setToolTip("User Profile")
+        self.user_avatar.setCursor(Qt.CursorShape.PointingHandCursor)
         self.user_avatar.clicked.connect(self.profile_clicked.emit)
         self.user_avatar.setObjectName("avatar")
-        self.user_avatar.setFixedSize(QSize(40,40))
+        self.user_avatar.setFixedSize(QSize(36, 36))
         self.user_avatar.setStyleSheet(f"""
             QPushButton#avatar {{
-                border-radius: {Dimensions.BORDER_RADIUS_CIRCLE};
-                border: 1px solid {Color.BORDER_MEDIUM};
-                background-color: {Color.BORDER_MEDIUM};
+                border-radius: 18px;
+                border: none;
+                background-color: {Color.PRIMARY_BLUE};
+                color: {Color.WHITE};
+                font-size: 13px;
+                font-weight: {Typography.FONT_WEIGHT_BOLD};
+                font-family: {Typography.FONT_FAMILY};
             }}
             QPushButton#avatar:hover {{
-                border: 1px solid {Color.PRIMARY_BLUE};
+                background-color: {Color.HOVER_BLUE};
             }}
         """)
         action_area_layout.addWidget(self.user_avatar)
@@ -222,6 +229,17 @@ class Navbar(QFrame):
 
         main_layout.addLayout(action_area_layout)
         self.setLayout(main_layout)
+
+    def _get_initials(self) -> str:
+        """Extrai as iniciais do nome do usuário (máx 2 letras)."""
+        name = self._user_data.get("name", "")
+        if name:
+            parts = name.strip().split()
+            if len(parts) >= 2:
+                return (parts[0][0] + parts[-1][0]).upper()
+            return parts[0][0].upper() if parts else "?"
+        email = self._user_data.get("email", "")
+        return email[0].upper() if email else "?"
 
     def update_navbar_for_page(self, new_page: PageEnum):
         self.nav_menu.update_active_item(new_page)
