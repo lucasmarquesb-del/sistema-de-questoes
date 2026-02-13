@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from db.database import engine, SessionLocal, Base
 from db.seed import seed_admin
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="MathBank Auth API",
+    description="API de autenticacao e gerenciamento de usuarios do MathBank.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -47,6 +49,12 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(users.router)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Redireciona para a documentacao da API."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
