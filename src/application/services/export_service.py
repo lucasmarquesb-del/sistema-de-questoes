@@ -3,6 +3,7 @@ Service para exportação de dados, especialmente para LaTeX/PDF.
 """
 import logging
 import subprocess
+import sys
 import locale
 import re
 import shutil
@@ -132,6 +133,49 @@ def escape_latex(text: str) -> str:
 class ExportService:
     def __init__(self):
         pass
+
+    def _encontrar_pdflatex(self) -> str:
+        """
+        Procura o executável pdflatex.
+        Primeiro verifica na pasta miktex-portable embutida no app,
+        depois no PATH do sistema.
+
+        Returns:
+            Caminho para o pdflatex encontrado.
+
+        Raises:
+            FileNotFoundError: Se pdflatex não for encontrado.
+        """
+        # Determinar diretório base do app (funciona tanto em dev quanto empacotado)
+        if getattr(sys, 'frozen', False):
+            # Executável empacotado pelo PyInstaller
+            app_dir = Path(sys.executable).parent
+        else:
+            # Desenvolvimento
+            app_dir = Path(__file__).resolve().parent.parent.parent.parent
+
+        # Caminhos possíveis do MiKTeX Portable
+        miktex_paths = [
+            app_dir / "miktex-portable" / "texmfs" / "install" / "miktex" / "bin" / "x64" / "pdflatex.exe",
+            app_dir / "miktex-portable" / "miktex" / "bin" / "x64" / "pdflatex.exe",
+        ]
+
+        for miktex_path in miktex_paths:
+            if miktex_path.exists():
+                logger.info(f"pdflatex encontrado no MiKTeX Portable: {miktex_path}")
+                return str(miktex_path)
+
+        # Fallback: pdflatex no PATH do sistema
+        import shutil as _shutil
+        system_pdflatex = _shutil.which("pdflatex")
+        if system_pdflatex:
+            logger.info(f"pdflatex encontrado no PATH do sistema: {system_pdflatex}")
+            return system_pdflatex
+
+        raise FileNotFoundError(
+            "pdflatex não encontrado. Instale o MiKTeX (https://miktex.org) "
+            "ou verifique se o MiKTeX Portable está na pasta do aplicativo."
+        )
 
     def _baixar_imagem_remota(self, url: str, destino: Path) -> bool:
         """
@@ -278,15 +322,23 @@ class ExportService:
             # Isso corrige o UnicodeDecodeError em Windows
             system_encoding = locale.getpreferredencoding()
 
+            # Procurar pdflatex: primeiro no MiKTeX Portable embutido, depois no PATH
+            pdflatex_cmd = self._encontrar_pdflatex()
+
             command = [
-                "pdflatex",
+                pdflatex_cmd,
                 "-no-shell-escape",
                 "-interaction=nonstopmode",
                 f"-output-directory={temp_dir}",
                 str(latex_file_path)
             ]
-            
+
             logger.info(f"Comando pdflatex: {' '.join(command)}")
+
+            # No Windows, ocultar janela de terminal do pdflatex
+            subprocess_kwargs = {}
+            if sys.platform == 'win32':
+                subprocess_kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
 
             for i in range(1, 3): # Compilar duas vezes para referências cruzadas
                 logger.info(f"Executando pdflatex ({i}/2) em {temp_dir}...")
@@ -295,7 +347,8 @@ class ExportService:
                     capture_output=True,
                     text=True,
                     encoding=system_encoding,
-                    errors='replace' # Evita erros de decodificação
+                    errors='replace', # Evita erros de decodificação
+                    **subprocess_kwargs
                 )
                 
                 if result.returncode != 0:

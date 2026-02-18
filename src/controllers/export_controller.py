@@ -581,6 +581,10 @@ class ExportController:
             fonte = questao.get('fonte') or ''
             ano = str(questao.get('ano') or '')
 
+            # Ignorar fonte "autoral" (questão do próprio autor, não exibir)
+            if fonte.lower().strip() == 'autoral':
+                fonte = ''
+
             # Cabecalho da questao: (FONTE - ANO) Enunciado (na mesma linha)
             if fonte and ano:
                 item = f"\\item \\textbf{{({fonte} - {ano})}} {enunciado}\n\n"
@@ -937,6 +941,10 @@ class ExportController:
             enunciado = self._processar_tabelas(enunciado)
             fonte = questao_para_usar.get('fonte') or ''
             ano = str(questao_para_usar.get('ano') or '')
+
+            # Ignorar fonte "autoral" (questão do próprio autor, não exibir)
+            if fonte.lower().strip() == 'autoral':
+                fonte = ''
 
             # Cabeçalho da questão
             if fonte and ano:

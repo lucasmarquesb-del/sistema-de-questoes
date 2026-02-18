@@ -5,10 +5,10 @@ Janela modal de visualização da questão no formato PDF
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame
+    QFrame, QTextBrowser
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl
+from PyQt6.QtGui import QImage
 import logging
 import re
 import os
@@ -130,10 +130,21 @@ class QuestaoPreview(QDialog):
             variant_banner_layout.addStretch()
             layout.addWidget(variant_banner)
 
-        # Área de preview usando QWebEngineView
-        self.web_view = QWebEngineView(self)
+        # Área de preview usando QTextBrowser (leve, sem Chromium)
+        self.web_view = QTextBrowser(self)
         self.web_view.setMinimumHeight(400)
+        self.web_view.setOpenExternalLinks(False)
         self.web_view.setStyleSheet("border: 1px solid #ccc; background-color: white;")
+
+        # Coletar imagens e registrar como recursos no documento
+        self._image_counter = 0
+        self._image_map = {}  # caminho_original -> nome_recurso
+        self._registrar_imagens_do_texto(self.questao_data.get('enunciado', ''))
+        if self.questao_data.get('alternativas'):
+            for alt in self.questao_data['alternativas']:
+                self._registrar_imagens_do_texto(alt.get('texto', ''))
+        if self.questao_data.get('resolucao'):
+            self._registrar_imagens_do_texto(self.questao_data['resolucao'])
 
         # Gerar HTML da questão
         html_content = self._gerar_html_questao()
@@ -442,6 +453,32 @@ li {{
 
         return texto
 
+    def _registrar_imagens_do_texto(self, texto: str):
+        """Pré-registra imagens locais como recursos do QTextDocument."""
+        if not texto:
+            return
+        pattern = r'\[IMG:(.+?):([0-9.]+)\]'
+        for match in re.finditer(pattern, texto):
+            caminho = match.group(1)
+            if caminho in self._image_map:
+                continue
+            if caminho.startswith(('http://', 'https://')):
+                continue
+            if os.path.exists(caminho):
+                try:
+                    img = QImage(caminho)
+                    if not img.isNull():
+                        self._image_counter += 1
+                        resource_name = f"img_{self._image_counter}"
+                        self.web_view.document().addResource(
+                            2,  # QTextDocument.ResourceType.ImageResource
+                            QUrl(resource_name),
+                            img
+                        )
+                        self._image_map[caminho] = resource_name
+                except Exception as e:
+                    logger.error(f"Erro ao registrar imagem {caminho}: {e}")
+
     def _processar_imagens(self, texto: str) -> str:
         """Processa placeholders de imagem [IMG:caminho:escala]."""
         pattern = r'\[IMG:(.+?):([0-9.]+)\]'
@@ -453,23 +490,13 @@ li {{
 
             # Se for URL (http/https), usar diretamente
             if caminho.startswith(('http://', 'https://')):
-                return f'<br><img src="{caminho}" style="max-width:{width}px; display:block; margin:10px auto;"><br>'
+                return f'<br><img src="{caminho}" width="{width}"><br>'
 
-            # Se for arquivo local, converter para base64 data URI
-            if os.path.exists(caminho):
-                try:
-                    with open(caminho, 'rb') as f:
-                        img_data = base64.b64encode(f.read()).decode()
-                    ext = caminho.rsplit('.', 1)[-1].lower()
-                    mime_types = {
-                        'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-                        'gif': 'image/gif', 'bmp': 'image/bmp', 'svg': 'image/svg+xml'
-                    }
-                    mime = mime_types.get(ext, 'image/png')
-                    return f'<br><img src="data:{mime};base64,{img_data}" style="max-width:{width}px; display:block; margin:10px auto;"><br>'
-                except Exception as e:
-                    logger.error(f"Erro ao carregar imagem {caminho}: {e}")
-                    return ''
+            # Usar recurso registrado no QTextDocument
+            resource_name = self._image_map.get(caminho)
+            if resource_name:
+                return f'<br><img src="{resource_name}" width="{width}"><br>'
+
             return ''
 
         return re.sub(pattern, replace_image, texto)
@@ -663,11 +690,13 @@ li {{
                 elif resposta.get('gabarito_discursivo'):
                     formatted_data['resolucao'] = resposta.get('gabarito_discursivo')
 
-            # Abrir preview da variante em nova janela
+            # Fechar este preview primeiro (cleanup do WebView)
+            self.accept()
+
+            # Abrir preview da variante em nova janela (após fechar este)
             variant_preview = QuestaoPreview(formatted_data, parent=self.parent())
             variant_preview.edit_requested.connect(self._forward_edit_request)
             variant_preview.create_variant_requested.connect(self._forward_create_variant_request)
-            self.accept()  # Fechar este preview
             variant_preview.exec()
 
     def _forward_edit_request(self, questao_data):

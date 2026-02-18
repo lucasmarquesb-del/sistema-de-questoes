@@ -111,6 +111,24 @@ def copy_runtime_data():
             shutil.copy2(src, DIST_DIR / filename)
             print(f"  [COPY] {src} -> {DIST_DIR / filename}")
 
+    # Copiar MiKTeX Portable (se existir)
+    # Suporta tanto installers/miktex-portable/texmfs/... quanto installers/miktex-portable/miktex-portable/texmfs/...
+    miktex_src = ROOT / "installers" / "miktex-portable"
+    miktex_dest = DIST_DIR / "miktex-portable"
+    if miktex_src.exists():
+        # Detectar se tem pasta duplicada (miktex-portable/miktex-portable/)
+        inner = miktex_src / "miktex-portable"
+        if inner.exists() and (inner / "texmfs").exists():
+            miktex_src = inner  # Usar o nível interno
+
+        if miktex_dest.exists():
+            shutil.rmtree(miktex_dest)
+        shutil.copytree(miktex_src, miktex_dest)
+        print(f"  [COPY] MiKTeX Portable -> {miktex_dest}")
+    else:
+        print(f"  [AVISO] MiKTeX Portable não encontrado em {miktex_src}")
+        print(f"          Baixe de https://miktex.org/portable e extraia para {miktex_src}")
+
     # Criar pastas vazias para runtime
     for dirname in ["logs", "exports"]:
         d = DIST_DIR / dirname
@@ -136,6 +154,56 @@ def create_release_zip():
     print(f"  [OK] {zip_path} ({size_mb:.1f} MB)")
 
 
+def find_iscc() -> str | None:
+    """Procura o compilador Inno Setup (iscc.exe)."""
+    import shutil as _shutil
+
+    # Verificar no PATH
+    iscc = _shutil.which("iscc")
+    if iscc:
+        return iscc
+
+    # Caminhos comuns do Inno Setup
+    common_paths = [
+        Path(os.environ.get("ProgramFiles(x86)", "")) / "Inno Setup 6" / "ISCC.exe",
+        Path(os.environ.get("ProgramFiles", "")) / "Inno Setup 6" / "ISCC.exe",
+        Path(os.environ.get("ProgramFiles(x86)", "")) / "Inno Setup 5" / "ISCC.exe",
+    ]
+
+    for p in common_paths:
+        if p.exists():
+            return str(p)
+
+    return None
+
+
+def build_installer():
+    """Compila o instalador com Inno Setup (se disponível)."""
+    iss_file = ROOT / "installer.iss"
+    if not iss_file.exists():
+        print("  [AVISO] installer.iss não encontrado, pulando criação do instalador.")
+        return
+
+    iscc = find_iscc()
+    if not iscc:
+        print("  [AVISO] Inno Setup (ISCC.exe) não encontrado.")
+        print("          Instale de https://jrsoftware.org/isinfo.php")
+        print("          Ou compile manualmente: iscc installer.iss")
+        return
+
+    print(f"  Compilando installer.iss com {iscc}...")
+    result = subprocess.run([iscc, str(iss_file)], cwd=str(ROOT))
+    if result.returncode == 0:
+        setup_path = ROOT / "dist" / "OharaBank_Setup.exe"
+        if setup_path.exists():
+            size_mb = setup_path.stat().st_size / (1024 * 1024)
+            print(f"  [OK] Instalador gerado: {setup_path} ({size_mb:.1f} MB)")
+        else:
+            print(f"  [OK] Inno Setup concluiu, verifique dist/ para o instalador.")
+    else:
+        print(f"  [ERRO] Inno Setup retornou código {result.returncode}")
+
+
 def main():
     print("=" * 60)
     print(f"  Empacotando {APP_NAME}")
@@ -145,7 +213,7 @@ def main():
 
     cmd = build_command()
 
-    print("\n[1/4] Executando PyInstaller...")
+    print("\n[1/5] Executando PyInstaller...")
     print(f"  Comando: {' '.join(cmd)}\n")
 
     result = subprocess.run(cmd, cwd=str(ROOT))
@@ -153,10 +221,10 @@ def main():
         print(f"\n[ERRO] PyInstaller retornou código {result.returncode}")
         sys.exit(result.returncode)
 
-    print("\n[2/4] Copiando dados de runtime...")
+    print("\n[2/5] Copiando dados de runtime...")
     copy_runtime_data()
 
-    print("\n[3/4] Verificando build...")
+    print("\n[3/5] Verificando build...")
     exe_path = DIST_DIR / f"{APP_NAME}.exe"
     if exe_path.exists():
         size_mb = exe_path.stat().st_size / (1024 * 1024)
@@ -164,8 +232,11 @@ def main():
     else:
         print(f"  [AVISO] Executável não encontrado em {exe_path}")
 
-    print("\n[4/4] Gerando .zip para GitHub Release...")
+    print("\n[4/5] Gerando .zip para GitHub Release...")
     create_release_zip()
+
+    print("\n[5/5] Gerando instalador (Inno Setup)...")
+    build_installer()
 
     print("\n" + "=" * 60)
     print(f"  Build concluído! Saída em: {DIST_DIR}")
