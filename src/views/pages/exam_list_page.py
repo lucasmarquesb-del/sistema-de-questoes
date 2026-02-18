@@ -4,9 +4,9 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QCheckBox, QRadioButton,
     QButtonGroup, QScrollArea, QSizePolicy, QGridLayout, QMessageBox,
     QComboBox, QFileDialog, QLineEdit, QPushButton, QSpinBox, QApplication,
-    QDialog, QDialogButtonBox
+    QDialog, QDialogButtonBox, QProgressBar
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QMimeData
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QMimeData, QThread, QTimer, QElapsedTimer
 from PyQt6.QtGui import QDrag
 from typing import Dict, List, Any, Optional
 
@@ -15,6 +15,79 @@ from src.views.components.common.buttons import PrimaryButton, SecondaryButton
 from src.controllers.lista_controller_orm import ListaControllerORM
 from src.controllers.questao_controller_orm import QuestaoControllerORM
 from src.controllers.adapters import criar_export_controller
+
+
+class ExportWorker(QThread):
+    """Thread para executar exportação sem bloquear a UI."""
+    finished = pyqtSignal(object)  # Emite o resultado (Path ou lista de Paths)
+    error = pyqtSignal(str)  # Emite mensagem de erro
+
+    def __init__(self, func, *args, **kwargs):
+        super().__init__()
+        self._func = func
+        self._args = args
+        self._kwargs = kwargs
+
+    def run(self):
+        try:
+            result = self._func(*self._args, **self._kwargs)
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class ExportProgressDialog(QDialog):
+    """Dialog de progresso durante exportação."""
+
+    def __init__(self, mensagem: str = "Gerando arquivo...", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Exportando")
+        self.setFixedSize(400, 130)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        self.label = QLabel(mensagem)
+        self.label.setStyleSheet("font-size: 13px;")
+        layout.addWidget(self.label)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # Indeterminado
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                text-align: center;
+                height: 22px;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+                border-radius: 3px;
+            }
+        """)
+        layout.addWidget(self.progress_bar)
+
+        self.time_label = QLabel("Tempo: 0s")
+        self.time_label.setStyleSheet("font-size: 11px; color: #666;")
+        layout.addWidget(self.time_label)
+
+        # Timer para atualizar tempo decorrido
+        self._elapsed = QElapsedTimer()
+        self._elapsed.start()
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._update_time)
+        self._timer.start(500)
+
+    def _update_time(self):
+        elapsed_s = self._elapsed.elapsed() / 1000
+        self.time_label.setText(f"Tempo: {elapsed_s:.0f}s")
+
+    def close_dialog(self):
+        self._timer.stop()
+        self.accept()
 
 
 class QuestionListItem(QListWidgetItem):
@@ -1332,49 +1405,51 @@ class ExamListPage(QWidget):
             self._perform_randomized_export(output_dir, template, 'direta', questoes_config)
             return
 
-        try:
-            from src.application.dtos.export_dto import ExportOptionsDTO
+        from src.application.dtos.export_dto import ExportOptionsDTO
 
-            opcoes = ExportOptionsDTO(
-                id_lista=self.current_exam_codigo,
-                template_latex=template,
-                tipo_exportacao='direta',  # PDF
-                output_dir=output_dir,
-                layout_colunas=1 if self.single_column_radio.isChecked() else 2,
-                incluir_gabarito=self.answer_key_checkbox.isChecked(),
-                # Campos do template Wallon
-                disciplina=self.disciplina_input.text().strip() or None,
-                professor=self.professor_input.text().strip() or None,
-                trimestre=self.trimestre_combo.currentData() or None,
-                ano=self.ano_input.text().strip() or None,
-                # Campos do template CEAB
-                data_aplicacao=self.data_aplicacao_input.text().strip() or None,
-                serie_simulado=self.serie_simulado_input.text().strip() or None,
-                # Unidade: usar campo do Wallon para listaWallon, ou campo CEAB para simuladoCeab
-                unidade=self.wallon_unidade_combo.currentData() or self.unidade_combo.currentData() or None,
-                tipo_simulado=self.tipo_simulado_combo.currentData() or None,
-                questoes_config=questoes_config if questoes_config else None
-            )
+        opcoes = ExportOptionsDTO(
+            id_lista=self.current_exam_codigo,
+            template_latex=template,
+            tipo_exportacao='direta',  # PDF
+            output_dir=output_dir,
+            layout_colunas=1 if self.single_column_radio.isChecked() else 2,
+            incluir_gabarito=self.answer_key_checkbox.isChecked(),
+            disciplina=self.disciplina_input.text().strip() or None,
+            professor=self.professor_input.text().strip() or None,
+            trimestre=self.trimestre_combo.currentData() or None,
+            ano=self.ano_input.text().strip() or None,
+            data_aplicacao=self.data_aplicacao_input.text().strip() or None,
+            serie_simulado=self.serie_simulado_input.text().strip() or None,
+            unidade=self.wallon_unidade_combo.currentData() or self.unidade_combo.currentData() or None,
+            tipo_simulado=self.tipo_simulado_combo.currentData() or None,
+            questoes_config=questoes_config if questoes_config else None
+        )
 
-            export_controller = criar_export_controller()
-            pdf_path = export_controller.exportar_lista(opcoes)
+        export_controller = criar_export_controller()
 
-            # Perguntar se deseja abrir o arquivo
+        # Dialog de progresso
+        progress = ExportProgressDialog("Gerando PDF, aguarde...", parent=self)
+
+        def on_finished(pdf_path):
+            progress.close_dialog()
             reply = QMessageBox.question(
                 self, "PDF Gerado",
                 f"PDF gerado com sucesso!\n\n{pdf_path}\n\nDeseja abrir o arquivo?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes
             )
-
             if reply == QMessageBox.StandardButton.Yes:
                 export_controller.abrir_arquivo(pdf_path)
 
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Erro",
-                f"Erro ao gerar PDF: {str(e)}"
-            )
+        def on_error(msg):
+            progress.close_dialog()
+            QMessageBox.critical(self, "Erro", f"Erro ao gerar PDF: {msg}")
+
+        self._export_worker = ExportWorker(export_controller.exportar_lista, opcoes)
+        self._export_worker.finished.connect(on_finished)
+        self._export_worker.error.connect(on_error)
+        self._export_worker.start()
+        progress.exec()
 
     def _validate_wallon_fields(self) -> bool:
         """Validate Wallon template fields."""
@@ -1465,43 +1540,46 @@ class ExamListPage(QWidget):
             self._perform_randomized_export(output_dir, template, 'manual', questoes_config)
             return
 
-        try:
-            from src.application.dtos.export_dto import ExportOptionsDTO
+        from src.application.dtos.export_dto import ExportOptionsDTO
 
-            opcoes = ExportOptionsDTO(
-                id_lista=self.current_exam_codigo,
-                template_latex=template,
-                tipo_exportacao='manual',  # LaTeX
-                output_dir=output_dir,
-                layout_colunas=1 if self.single_column_radio.isChecked() else 2,
-                incluir_gabarito=self.answer_key_checkbox.isChecked(),
-                # Campos do template Wallon
-                disciplina=self.disciplina_input.text().strip() or None,
-                professor=self.professor_input.text().strip() or None,
-                trimestre=self.trimestre_combo.currentData() or None,
-                ano=self.ano_input.text().strip() or None,
-                # Campos do template CEAB
-                data_aplicacao=self.data_aplicacao_input.text().strip() or None,
-                serie_simulado=self.serie_simulado_input.text().strip() or None,
-                # Unidade: usar campo do Wallon para listaWallon, ou campo CEAB para simuladoCeab
-                unidade=self.wallon_unidade_combo.currentData() or self.unidade_combo.currentData() or None,
-                tipo_simulado=self.tipo_simulado_combo.currentData() or None,
-                questoes_config=questoes_config if questoes_config else None
-            )
+        opcoes = ExportOptionsDTO(
+            id_lista=self.current_exam_codigo,
+            template_latex=template,
+            tipo_exportacao='manual',  # LaTeX
+            output_dir=output_dir,
+            layout_colunas=1 if self.single_column_radio.isChecked() else 2,
+            incluir_gabarito=self.answer_key_checkbox.isChecked(),
+            disciplina=self.disciplina_input.text().strip() or None,
+            professor=self.professor_input.text().strip() or None,
+            trimestre=self.trimestre_combo.currentData() or None,
+            ano=self.ano_input.text().strip() or None,
+            data_aplicacao=self.data_aplicacao_input.text().strip() or None,
+            serie_simulado=self.serie_simulado_input.text().strip() or None,
+            unidade=self.wallon_unidade_combo.currentData() or self.unidade_combo.currentData() or None,
+            tipo_simulado=self.tipo_simulado_combo.currentData() or None,
+            questoes_config=questoes_config if questoes_config else None
+        )
 
-            export_controller = criar_export_controller()
-            tex_path = export_controller.exportar_lista(opcoes)
+        export_controller = criar_export_controller()
 
+        progress = ExportProgressDialog("Exportando LaTeX, aguarde...", parent=self)
+
+        def on_finished(tex_path):
+            progress.close_dialog()
             QMessageBox.information(
                 self, "Sucesso",
                 f"Arquivo LaTeX exportado com sucesso!\n\n{tex_path}"
             )
 
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Erro",
-                f"Erro ao exportar LaTeX: {str(e)}"
-            )
+        def on_error(msg):
+            progress.close_dialog()
+            QMessageBox.critical(self, "Erro", f"Erro ao exportar LaTeX: {msg}")
+
+        self._export_worker = ExportWorker(export_controller.exportar_lista, opcoes)
+        self._export_worker.finished.connect(on_finished)
+        self._export_worker.error.connect(on_error)
+        self._export_worker.start()
+        progress.exec()
 
     def _perform_randomized_export(self, output_dir: str, template: str, tipo_exportacao: str, questoes_config: Optional[Dict[str, str]] = None):
         """Perform randomized export generating multiple versions."""
@@ -1514,66 +1592,59 @@ class ExamListPage(QWidget):
 
         tipos = ['A', 'B', 'C', 'D']
         quantidade = self.versoes_spinbox.value()
-        arquivos_gerados = []
 
-        try:
-            # Mostrar cursor de espera
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            QApplication.processEvents()
+        export_controller = criar_export_controller()
 
-            export_controller = criar_export_controller()
+        # Construir lista de opções para cada versão
+        opcoes_list = []
+        for i in range(quantidade):
+            tipo = tipos[i]
+            opcoes = ExportOptionsDTO(
+                id_lista=self.current_exam_codigo,
+                template_latex=template,
+                tipo_exportacao=tipo_exportacao,
+                output_dir=output_dir,
+                layout_colunas=1 if self.single_column_radio.isChecked() else 2,
+                incluir_gabarito=self.answer_key_checkbox.isChecked(),
+                disciplina=self.disciplina_input.text().strip() or None,
+                professor=self.professor_input.text().strip() or None,
+                trimestre=self.trimestre_combo.currentData() or None,
+                ano=self.ano_input.text().strip() or None,
+                data_aplicacao=self.data_aplicacao_input.text().strip() or None,
+                serie_simulado=self.serie_simulado_input.text().strip() or None,
+                unidade=self.wallon_unidade_combo.currentData() or self.unidade_combo.currentData() or None,
+                tipo_simulado=self.tipo_simulado_combo.currentData() or None,
+                gerar_versoes_randomizadas=True,
+                quantidade_versoes=quantidade,
+                sufixo_versao=f"TIPO {tipo}",
+                questoes_config=questoes_config if questoes_config else None
+            )
+            opcoes_list.append((opcoes, i))
 
-            for i in range(quantidade):
-                tipo = tipos[i]
-
-                opcoes = ExportOptionsDTO(
-                    id_lista=self.current_exam_codigo,
-                    template_latex=template,
-                    tipo_exportacao=tipo_exportacao,
-                    output_dir=output_dir,
-                    layout_colunas=1 if self.single_column_radio.isChecked() else 2,
-                    incluir_gabarito=self.answer_key_checkbox.isChecked(),
-                    # Campos do template Wallon
-                    disciplina=self.disciplina_input.text().strip() or None,
-                    professor=self.professor_input.text().strip() or None,
-                    trimestre=self.trimestre_combo.currentData() or None,
-                    ano=self.ano_input.text().strip() or None,
-                    # Campos do template CEAB
-                    data_aplicacao=self.data_aplicacao_input.text().strip() or None,
-                    serie_simulado=self.serie_simulado_input.text().strip() or None,
-                    # Unidade: usar campo do Wallon para listaWallon, ou campo CEAB para simuladoCeab
-                    unidade=self.wallon_unidade_combo.currentData() or self.unidade_combo.currentData() or None,
-                    tipo_simulado=self.tipo_simulado_combo.currentData() or None,
-                    # Campos de randomização
-                    gerar_versoes_randomizadas=True,
-                    quantidade_versoes=quantidade,
-                    sufixo_versao=f"TIPO {tipo}",
-                    questoes_config=questoes_config if questoes_config else None
-                )
-
-                result_path = export_controller.exportar_lista_randomizada(opcoes, indice_versao=i)
+        def run_randomized():
+            arquivos = []
+            for opcoes, indice in opcoes_list:
+                result_path = export_controller.exportar_lista_randomizada(opcoes, indice_versao=indice)
                 if result_path:
-                    arquivos_gerados.append(result_path)
+                    arquivos.append(result_path)
+            return arquivos
 
-                QApplication.processEvents()
+        extensao = "PDF" if tipo_exportacao == 'direta' else "LaTeX"
+        progress = ExportProgressDialog(f"Gerando {quantidade} versões {extensao}, aguarde...", parent=self)
 
-            QApplication.restoreOverrideCursor()
-
+        def on_finished(arquivos_gerados):
+            progress.close_dialog()
             if arquivos_gerados:
-                extensao = "PDF" if tipo_exportacao == 'direta' else "LaTeX"
                 msg = f"Versões {extensao} geradas com sucesso!\n\nArquivos criados em:\n{output_dir}\n\n"
                 msg += "Arquivos:\n" + "\n".join([f"• {p.name}" for p in arquivos_gerados])
 
-                # Se for PDF, perguntar se deseja abrir os arquivos
                 if tipo_exportacao == 'direta':
                     msg += "\n\nDeseja abrir os arquivos?"
                     reply = QMessageBox.question(
-                        self, "Sucesso",
-                        msg,
+                        self, "Sucesso", msg,
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                         QMessageBox.StandardButton.Yes
                     )
-
                     if reply == QMessageBox.StandardButton.Yes:
                         for pdf_path in arquivos_gerados:
                             export_controller.abrir_arquivo(pdf_path)
@@ -1582,9 +1653,15 @@ class ExamListPage(QWidget):
             else:
                 QMessageBox.warning(self, "Erro", "Nenhum arquivo foi gerado.")
 
-        except Exception as e:
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(self, "Erro", f"Erro ao gerar versões randomizadas: {str(e)}")
+        def on_error(msg):
+            progress.close_dialog()
+            QMessageBox.critical(self, "Erro", f"Erro ao gerar versões randomizadas: {msg}")
+
+        self._export_worker = ExportWorker(run_randomized)
+        self._export_worker.finished.connect(on_finished)
+        self._export_worker.error.connect(on_error)
+        self._export_worker.start()
+        progress.exec()
 
     def _get_export_config(self) -> Dict:
         """Get current export configuration."""
